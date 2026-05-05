@@ -2,11 +2,11 @@ import { withStatics } from "@/util/schema"
 import { Array, Context, Effect, HashMap, Layer, Option, Order, pipe, Schema } from "effect"
 import { DateTimeUtcFromMillis } from "effect/Schema"
 
-export const ID = Schema.String.pipe(Schema.brand("Model.ID"))
+export const ID = Schema.String.pipe(Schema.brand("ModelV2.ID"))
 export type ID = typeof ID.Type
 
 export const ProviderID = Schema.String.pipe(
-  Schema.brand("Model.ProviderID"),
+  Schema.brand("ModelV2.ProviderID"),
   withStatics((schema) => ({
     // Well-known providers
     opencode: schema.make("opencode"),
@@ -95,7 +95,7 @@ export const Ref = Schema.Struct({
 })
 export type Ref = typeof Ref.Type
 
-export class Info extends Schema.Class<Info>("Model.Info")({
+export class Info extends Schema.Class<Info>("ModelV2.Info")({
   id: ID,
   providerID: ProviderID,
   family: Family.pipe(Schema.optional),
@@ -151,19 +151,19 @@ export const layer = Layer.effect(
     }
 
     const result: Interface = {
-      get: Effect.fn("V2Model.get")(function* (providerID, modelID) {
+      get: Effect.fn("ModelV2.get")(function* (providerID, modelID) {
         return HashMap.get(models, key(providerID, modelID))
       }),
 
-      add: Effect.fn("V2Model.add")(function* (model) {
+      add: Effect.fn("ModelV2.add")(function* (model) {
         models = HashMap.set(models, key(model.providerID, model.id), model)
       }),
 
-      remove: Effect.fn("V2Model.remove")(function* (providerID, modelID) {
+      remove: Effect.fn("ModelV2.remove")(function* (providerID, modelID) {
         models = HashMap.remove(models, key(providerID, modelID))
       }),
 
-      all: Effect.fn("V2Model.all")(function* () {
+      all: Effect.fn("ModelV2.all")(function* () {
         return pipe(
           models,
           HashMap.toValues,
@@ -171,12 +171,12 @@ export const layer = Layer.effect(
         )
       }),
 
-      default: Effect.fn("V2Model.default")(function* () {
+      default: Effect.fn("ModelV2.default")(function* () {
         const all = yield* result.all()
         return Option.fromUndefinedOr(all[0])
       }),
 
-      small: Effect.fn("V2Model.small")(function* (providerID) {
+      small: Effect.fn("ModelV2.small")(function* (providerID) {
         const all = yield* result.all()
         const match = all.find((model) => model.providerID === providerID && model.id.toLowerCase().includes("small"))
         return Option.fromUndefinedOr(match)
@@ -189,4 +189,4 @@ export const layer = Layer.effect(
 
 export const defaultLayer = layer
 
-export * as Modelv2 from "./model"
+export * as ModelV2 from "./model"

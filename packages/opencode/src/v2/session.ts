@@ -11,7 +11,7 @@ import { ProjectID } from "@/project/schema"
 import { SessionEvent } from "./session-event"
 import { V2Schema } from "./schema"
 import { optionalOmitUndefined } from "@/util/schema"
-import { Modelv2 } from "./model"
+import { ModelV2 } from "./model"
 
 export const Delivery = Schema.Literals(["immediate", "deferred"]).annotate({
   identifier: "Session.Delivery",
@@ -27,7 +27,7 @@ export class Info extends Schema.Class<Info>("Session.Info")({
   workspaceID: optionalOmitUndefined(WorkspaceID),
   path: optionalOmitUndefined(Schema.String),
   agent: optionalOmitUndefined(Schema.String),
-  model: Modelv2.Ref.pipe(optionalOmitUndefined),
+  model: ModelV2.Ref.pipe(optionalOmitUndefined),
   time: Schema.Struct({
     created: V2Schema.DateTimeUtcFromMillis,
     updated: V2Schema.DateTimeUtcFromMillis,
@@ -56,7 +56,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Ses
 export interface Interface {
   readonly create: (input?: {
     agent?: string
-    model?: Modelv2.Ref
+    model?: ModelV2.Ref
     parentID?: SessionID
     workspaceID?: WorkspaceID
   }) => Effect.Effect<Info>
@@ -100,10 +100,10 @@ export interface Interface {
     parentID: SessionID
     prompt: Prompt
     agent: string
-    model?: Modelv2.Ref
+    model?: ModelV2.Ref
   }) => Effect.Effect<void, NotFoundError>
   readonly switchAgent: (input: { sessionID: SessionID; agent: string }) => Effect.Effect<void, never>
-  readonly switchModel: (input: { sessionID: SessionID; model: Modelv2.Ref }) => Effect.Effect<void, never>
+  readonly switchModel: (input: { sessionID: SessionID; model: ModelV2.Ref }) => Effect.Effect<void, never>
   readonly compact: (sessionID: SessionID) => Effect.Effect<void, never>
   readonly wait: (sessionID: SessionID) => Effect.Effect<void, never>
 }
@@ -129,9 +129,9 @@ export const layer = Layer.effect(
         agent: row.agent ?? undefined,
         model: row.model
           ? {
-              id: Modelv2.ID.make(row.model.id),
-              providerID: Modelv2.ProviderID.make(row.model.providerID),
-              variant: Modelv2.VariantID.make(row.model.variant ?? "default"),
+              id: ModelV2.ID.make(row.model.id),
+              providerID: ModelV2.ProviderID.make(row.model.providerID),
+              variant: ModelV2.VariantID.make(row.model.variant ?? "default"),
             }
           : undefined,
         time: {

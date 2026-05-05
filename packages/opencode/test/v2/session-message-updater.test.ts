@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import * as DateTime from "effect/DateTime"
 import { SessionID } from "../../src/session/schema"
 import { EventV2 } from "../../src/v2/event"
-import { Modelv2 } from "../../src/v2/model"
+import { ModelV2 } from "../../src/v2/model"
 import { SessionEvent } from "../../src/v2/session-event"
 import { SessionMessageUpdater } from "../../src/v2/session-message-updater"
 
@@ -18,9 +18,9 @@ test("step snapshots carry over to assistant messages", () => {
       timestamp: DateTime.makeUnsafe(1),
       agent: "build",
       model: {
-        id: Modelv2.ID.make("model"),
-        providerID: Modelv2.ProviderID.make("provider"),
-        variant: Modelv2.VariantID.make("default"),
+        id: ModelV2.ID.make("model"),
+        providerID: ModelV2.ProviderID.make("provider"),
+        variant: ModelV2.VariantID.make("default"),
       },
       snapshot: "before",
     },
@@ -62,9 +62,9 @@ test("text ended populates assistant text content", () => {
       timestamp: DateTime.makeUnsafe(1),
       agent: "build",
       model: {
-        id: Modelv2.ID.make("model"),
-        providerID: Modelv2.ProviderID.make("provider"),
-        variant: Modelv2.VariantID.make("default"),
+        id: ModelV2.ID.make("model"),
+        providerID: ModelV2.ProviderID.make("provider"),
+        variant: ModelV2.VariantID.make("default"),
       },
     },
   } satisfies SessionEvent.Event)
@@ -106,9 +106,9 @@ test("tool completion stores completed timestamp", () => {
       timestamp: DateTime.makeUnsafe(1),
       agent: "build",
       model: {
-        id: Modelv2.ID.make("model"),
-        providerID: Modelv2.ProviderID.make("provider"),
-        variant: Modelv2.VariantID.make("default"),
+        id: ModelV2.ID.make("model"),
+        providerID: ModelV2.ProviderID.make("provider"),
+        variant: ModelV2.VariantID.make("default"),
       },
     },
   } satisfies SessionEvent.Event)
