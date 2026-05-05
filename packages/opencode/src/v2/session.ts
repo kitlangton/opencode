@@ -142,7 +142,7 @@ export const layer = Layer.effect(
       })
     }
 
-    const result: Interface = {
+    const result = Service.of({
       create: Effect.fn("V2Session.create")(function* (_input) {
         return {} as any
       }),
@@ -284,7 +284,7 @@ export const layer = Layer.effect(
       }),
       subagent: Effect.fn("V2Session.subagent")(function* (input) {
         const parent = yield* result.get(input.parentID)
-        const session = yield* result.create({
+        const child = yield* result.create({
           agent: input.agent,
           model: input.model,
           parentID: input.parentID,
@@ -292,11 +292,11 @@ export const layer = Layer.effect(
         })
         yield* result.prompt({
           prompt: input.prompt,
-          sessionID: session.id,
+          sessionID: child.id,
         })
         yield* Effect.gen(function* () {
-          yield* result.wait(session.id)
-          const messages = yield* result.messages({ sessionID: session.id, order: "desc" })
+          yield* result.wait(child.id)
+          const messages = yield* result.messages({ sessionID: child.id, order: "desc" })
           const assistant = messages.find((msg) => msg.type === "assistant")
           if (!assistant) return
           const text = assistant.content.findLast((part) => part.type === "text")
@@ -305,9 +305,9 @@ export const layer = Layer.effect(
       }),
       compact: Effect.fn("V2Session.compact")(function* (_sessionID) {}),
       wait: Effect.fn("V2Session.wait")(function* (_sessionID) {}),
-    }
+    })
 
-    return Service.of(result)
+    return result
   }),
 )
 

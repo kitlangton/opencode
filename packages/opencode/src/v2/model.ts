@@ -5,6 +5,14 @@ import { DateTimeUtcFromMillis } from "effect/Schema"
 export const ID = Schema.String.pipe(Schema.brand("ModelV2.ID"))
 export type ID = typeof ID.Type
 
+export const Key = Schema.String.pipe(
+  Schema.brand("ModelV2.Key"),
+  withStatics((schema) => ({
+    make: (providerID: ProviderID, modelID: ID) => schema.make(`${providerID}/${modelID}`),
+  })),
+)
+export type Key = typeof Key.Type
+
 export const ProviderID = Schema.String.pipe(
   Schema.brand("ModelV2.ProviderID"),
   withStatics((schema) => ({
@@ -144,23 +152,19 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/v2
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    let models = HashMap.empty<string, Info>()
-
-    function key(providerID: ProviderID, modelID: ID) {
-      return `${providerID}/${modelID}`
-    }
+    let models = HashMap.empty<Key, Info>()
 
     const result: Interface = {
       get: Effect.fn("ModelV2.get")(function* (providerID, modelID) {
-        return HashMap.get(models, key(providerID, modelID))
+        return HashMap.get(models, Key.make(providerID, modelID))
       }),
 
       add: Effect.fn("ModelV2.add")(function* (model) {
-        models = HashMap.set(models, key(model.providerID, model.id), model)
+        models = HashMap.set(models, Key.make(model.providerID, model.id), model)
       }),
 
       remove: Effect.fn("ModelV2.remove")(function* (providerID, modelID) {
-        models = HashMap.remove(models, key(providerID, modelID))
+        models = HashMap.remove(models, Key.make(providerID, modelID))
       }),
 
       all: Effect.fn("ModelV2.all")(function* () {
