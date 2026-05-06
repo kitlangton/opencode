@@ -4,6 +4,7 @@ import { AuthV2 } from "@/v2/auth"
 import { Catalog } from "@/v2/catalog"
 import { PluginV2 } from "@/v2/plugin"
 import { PluginRuntime } from "@/v2/plugin-runtime"
+import { AuthPlugin } from "@/v2/plugin/auth"
 import { EnvPlugin } from "@/v2/plugin/env"
 import { ModelsDevPlugin } from "@/v2/plugin/models-dev"
 import { OpenRouterPlugin } from "@/v2/plugin/openrouter"
@@ -26,11 +27,11 @@ export const V2Command = effectCmd({
 
       yield* plugin.add(OpenRouterPlugin)
       yield* plugin.add(ModelsDevPlugin)
+      yield* plugin.add(AuthPlugin)
       yield* plugin.add(EnvPlugin)
 
       return {
         providers: yield* catalog.provider.available(),
-        models: yield* catalog.model.available(),
       }
     }).pipe(Effect.provide(layer), Effect.orDie)
 

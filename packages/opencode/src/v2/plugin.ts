@@ -4,8 +4,6 @@ import { createDraft, finishDraft, type Draft } from "immer"
 import { type ModelV2 } from "./model"
 import { type ProviderV2 } from "./provider"
 import { Context, Effect, Layer, Schema } from "effect"
-import type { SessionID } from "@/session/schema"
-import type { SessionStatus } from "@/session/status"
 
 export const ID = Schema.String.pipe(Schema.brand("Plugin.ID"))
 export type ID = typeof ID.Type
@@ -18,10 +16,6 @@ export type Hooks = {
   "model.update": {
     model: Draft<ModelV2.Info>
     cancel: boolean
-  }
-  "session.status": {
-    sessionID: SessionID
-    status: SessionStatus.Info
   }
 }
 

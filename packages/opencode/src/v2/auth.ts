@@ -106,25 +106,43 @@ export const layer = Layer.effect(
     const fsys = yield* AppFileSystem.Service
     const global = yield* Global.Service
     const file = path.join(global.data, "auth-v2.json")
+    const legacyFile = path.join(global.data, "auth.json")
 
-    const load: () => Effect.Effect<Writable, AuthError> = Effect.fnUntraced(function* () {
-      if (process.env.OPENCODE_AUTH_CONTENT) {
-        try {
-          return JSON.parse(process.env.OPENCODE_AUTH_CONTENT)
-        } catch {}
-      }
-
-      const raw = yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => null))
-
-      if (!raw || typeof raw !== "object") return { version: 2, accounts: {}, active: {} }
-
-      if ("version" in raw && raw.version === 2) return raw as Writable
-
-      const migrated = migrate(raw as Record<string, unknown>)
+    const writeMigrated = Effect.fnUntraced(function* (raw: Record<string, unknown>) {
+      const migrated = migrate(raw)
       yield* fsys
         .writeJson(file, migrated, 0o600)
         .pipe(Effect.mapError((cause) => new AuthFileWriteError({ operation: "migrate", cause })))
       return migrated
+    })
+
+    const parseAuthContent = () => {
+      try {
+        return JSON.parse(process.env.OPENCODE_AUTH_CONTENT ?? "")
+      } catch {}
+    }
+
+    const load: () => Effect.Effect<Writable, AuthError> = Effect.fnUntraced(function* () {
+      if (process.env.OPENCODE_AUTH_CONTENT) {
+        const raw = parseAuthContent()
+        if (raw && typeof raw === "object") {
+          if ("version" in raw && raw.version === 2) return raw as Writable
+          return yield* writeMigrated(raw as Record<string, unknown>)
+        }
+        return { version: 2, accounts: {}, active: {} }
+      }
+
+      const legacy = yield* fsys.readJson(legacyFile).pipe(Effect.orElseSucceed(() => null))
+      if (legacy && typeof legacy === "object") return yield* writeMigrated(legacy as Record<string, unknown>)
+
+      const raw = yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => null))
+
+      if (raw && typeof raw === "object") {
+        if ("version" in raw && raw.version === 2) return raw as Writable
+        return yield* writeMigrated(raw as Record<string, unknown>)
+      }
+
+      return { version: 2, accounts: {}, active: {} }
     })
 
     const write = (data: Writable) =>
