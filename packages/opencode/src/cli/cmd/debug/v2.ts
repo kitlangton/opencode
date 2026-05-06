@@ -1,5 +1,5 @@
 import { EOL } from "os"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Option } from "effect"
 import { AuthV2 } from "@/v2/auth"
 import { Catalog } from "@/v2/catalog"
 import { PluginV2 } from "@/v2/plugin"
@@ -9,7 +9,6 @@ import { EnvPlugin } from "@/v2/plugin/env"
 import { ModelsDevPlugin } from "@/v2/plugin/models-dev"
 import { ProviderPlugins } from "@/v2/plugin/provider"
 import { Npm } from "@opencode-ai/core/npm"
-import { Config } from "@/config/config"
 import { effectCmd } from "../../effect-cmd"
 
 const layer = PluginRuntime.layer.pipe(
@@ -17,7 +16,6 @@ const layer = PluginRuntime.layer.pipe(
   Layer.provideMerge(PluginV2.defaultLayer),
   Layer.provideMerge(AuthV2.defaultLayer),
   Layer.provideMerge(Npm.defaultLayer),
-  Layer.provideMerge(Config.defaultLayer),
 )
 
 export const V2Command = effectCmd({
@@ -40,6 +38,7 @@ export const V2Command = effectCmd({
 
       return {
         providers: yield* catalog.provider.available(),
+        default: Option.getOrUndefined(yield* catalog.model.default()),
       }
     }).pipe(Effect.provide(layer), Effect.orDie)
 

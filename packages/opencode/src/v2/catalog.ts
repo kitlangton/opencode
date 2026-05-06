@@ -1,6 +1,5 @@
 export * as Catalog from "./catalog"
 
-import { Config } from "@/config/config"
 import { Context, Effect, HashMap, Layer, Option, Order, pipe, Schema, Array } from "effect"
 import { produce, type Draft } from "immer"
 import { ModelV2 } from "./model"
@@ -10,22 +9,6 @@ import { ProviderV2 } from "./provider"
 type ProviderRecord = {
   provider: ProviderV2.Info
   models: HashMap.HashMap<ModelV2.ID, ModelV2.Info>
-}
-
-const defaultPriority = ["gpt-5", "claude-sonnet-4", "big-pickle", "gemini-3-pro"]
-
-function sortDefaultModels(models: ModelV2.Info[]) {
-  return [...models].sort((a, b) => {
-    const priority =
-      defaultPriority.findIndex((filter) => b.id.includes(filter)) -
-      defaultPriority.findIndex((filter) => a.id.includes(filter))
-    if (priority !== 0) return priority
-
-    const latest = (a.id.includes("latest") ? 0 : 1) - (b.id.includes("latest") ? 0 : 1)
-    if (latest !== 0) return latest
-
-    return b.id.localeCompare(a.id)
-  })
 }
 
 function smallPriority(providerID: ProviderV2.ID) {
@@ -103,6 +86,7 @@ export interface Interface {
     readonly all: () => Effect.Effect<ModelV2.Info[]>
     readonly available: () => Effect.Effect<ModelV2.Info[]>
     readonly default: () => Effect.Effect<Option.Option<ModelV2.Info>>
+    readonly setDefault: (providerID: ProviderV2.ID, modelID: ModelV2.ID) => Effect.Effect<void, ProviderNotFoundError | ModelNotFoundError>
     readonly small: (providerID: ProviderV2.ID) => Effect.Effect<Option.Option<ModelV2.Info>>
   }
 }
@@ -113,6 +97,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     let records = HashMap.empty<ProviderV2.ID, ProviderRecord>()
+    let defaultModel: { providerID: ProviderV2.ID; modelID: ModelV2.ID } | undefined
     const plugin = yield* PluginV2.Service
 
     const resolve = (model: ModelV2.Info) => {
@@ -227,30 +212,24 @@ export const layer = Layer.effect(
         }),
 
         default: Effect.fn("CatalogV2.model.default")(function* () {
-          const config = Option.getOrUndefined(yield* Effect.serviceOption(Config.Service))
-          const cfg = config ? yield* config.get() : undefined
-          if (cfg?.model) {
-            const parsed = ModelV2.parse(cfg.model)
-            const model = yield* result.model.get(parsed.providerID, parsed.modelID).pipe(Effect.option)
+          if (defaultModel) {
+            const model = yield* result.model.get(defaultModel.providerID, defaultModel.modelID).pipe(Effect.option)
             if (Option.isSome(model) && model.value.enabled) return model
           }
 
-          const available = (yield* result.model.available()).filter((model) => {
-            if (!cfg?.provider) return true
-            return model.providerID in cfg.provider
-          })
-          return Option.fromUndefinedOr(sortDefaultModels(available)[0])
+          return pipe(
+            yield* result.model.available(),
+            Array.sortWith((item) => item.time.released.epochMilliseconds, Order.flip(Order.Number)),
+            Array.head,
+          )
+        }),
+
+        setDefault: Effect.fn("CatalogV2.model.setDefault")(function* (providerID, modelID) {
+          yield* result.model.get(providerID, modelID)
+          defaultModel = { providerID, modelID }
         }),
 
         small: Effect.fn("CatalogV2.model.small")(function* (providerID) {
-          const config = Option.getOrUndefined(yield* Effect.serviceOption(Config.Service))
-          const cfg = config ? yield* config.get() : undefined
-          if (cfg?.small_model) {
-            const parsed = ModelV2.parse(cfg.small_model)
-            const model = yield* result.model.get(parsed.providerID, parsed.modelID).pipe(Effect.option)
-            if (Option.isSome(model) && model.value.enabled) return model
-          }
-
           return Option.fromUndefinedOr(
             findSmallModel(
               providerID,

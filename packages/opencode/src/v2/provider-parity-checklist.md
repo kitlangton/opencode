@@ -54,9 +54,9 @@
 
 ## Default Models
 
-- [x] Configured default model selection.
+- [x] Configured default model selection. Replaced by explicit `Catalog.model.setDefault`.
 - [SKIP] Recent-history default model selection — not porting to server-side v2 catalog.
-- [x] Default model fallback sorting.
+- [x] Default model fallback sorting. Uses newest available model, not legacy hard-coded priority.
 
 ## Small Models
 
