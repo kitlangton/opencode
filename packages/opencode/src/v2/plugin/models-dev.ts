@@ -37,19 +37,15 @@ function cost(input: ModelsDev.Model["cost"]) {
   ]
 }
 
-function endpoint(url?: string): ProviderV2.Endpoint {
-  if (!url) return { type: "unknown" }
-  return {
-    type: "openai/completions",
-    url,
-  }
-}
-
 function variants(model: ModelsDev.Model) {
   return Object.entries(model.experimental?.modes ?? {}).map(([id, item]) => ({
     id: ModelV2.VariantID.make(id),
     headers: { ...(item.provider?.headers ?? {}) },
     body: { ...(item.provider?.body ?? {}) },
+    aisdk: {
+      provider: {},
+      request: {},
+    },
   }))
 }
 
@@ -63,7 +59,15 @@ export const ModelsDevPlugin = {
       yield* catalog.provider.update(providerID, (provider) => {
         provider.name = item.name
         provider.env = [...item.env]
-        provider.endpoint = endpoint(item.api)
+        provider.endpoint = item.npm
+          ? {
+              type: "aisdk",
+              package: item.npm,
+              url: item.api,
+            }
+          : {
+              type: "unknown",
+            }
       })
 
       for (const model of Object.values(item.models)) {
@@ -72,7 +76,14 @@ export const ModelsDevPlugin = {
           .update(providerID, modelID, (draft) => {
             draft.name = model.name
             draft.family = model.family ? ModelV2.Family.make(model.family) : undefined
-            draft.endpoint = endpoint(model.provider?.api)
+            draft.endpoint = model.provider?.npm
+              ? {
+                  type: "aisdk",
+                  package: model.provider?.npm,
+                }
+              : {
+                  type: "unknown",
+                }
             draft.capabilities = {
               tools: model.tool_call,
               input: [...(model.modalities?.input ?? [])],
@@ -82,6 +93,7 @@ export const ModelsDevPlugin = {
             draft.time.released = released(model.release_date)
             draft.cost = cost(model.cost)
             draft.status = model.status ?? "active"
+            draft.enabled = true
             draft.limit = {
               context: model.limit.context,
               input: model.limit.input,

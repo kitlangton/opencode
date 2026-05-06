@@ -42,6 +42,7 @@ export type Ref = typeof Ref.Type
 
 export class Info extends Schema.Class<Info>("ModelV2.Info")({
   id: ID,
+  apiID: ID,
   providerID: ProviderV2.ID,
   family: Family.pipe(Schema.optional),
   name: Schema.String,
@@ -60,6 +61,7 @@ export class Info extends Schema.Class<Info>("ModelV2.Info")({
   }),
   cost: Cost.pipe(Schema.Array),
   status: Schema.Literals(["alpha", "beta", "deprecated", "active"]),
+  enabled: Schema.Boolean,
   limit: Schema.Struct({
     context: Schema.Int,
     input: Schema.Int.pipe(Schema.optional),
@@ -69,6 +71,7 @@ export class Info extends Schema.Class<Info>("ModelV2.Info")({
   static empty(providerID: ProviderV2.ID, modelID: ID) {
     return new Info({
       id: modelID,
+      apiID: modelID,
       providerID,
       name: modelID,
       endpoint: {
@@ -82,6 +85,10 @@ export class Info extends Schema.Class<Info>("ModelV2.Info")({
       options: {
         headers: {},
         body: {},
+        aisdk: {
+          provider: {},
+          request: {},
+        },
       },
       variants: [],
       time: {
@@ -89,6 +96,7 @@ export class Info extends Schema.Class<Info>("ModelV2.Info")({
       },
       cost: [],
       status: "active",
+      enabled: true,
       limit: {
         context: 0,
         output: 0,

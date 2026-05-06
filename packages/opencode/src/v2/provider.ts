@@ -45,6 +45,7 @@ export type OpenAICompletions = typeof OpenAICompletions.Type
 const AISDK = Schema.Struct({
   type: Schema.Literal("aisdk"),
   package: Schema.String,
+  url: Schema.String.pipe(Schema.optional),
 })
 
 const AnthropicMessages = Schema.Struct({
@@ -56,21 +57,43 @@ const UnknownEndpoint = Schema.Struct({
   type: Schema.Literal("unknown"),
 })
 
-export const Endpoint = Schema.Union([UnknownEndpoint, OpenAIResponses, OpenAICompletions, AnthropicMessages, AISDK]).pipe(
-  Schema.toTaggedUnion("type"),
-)
+export const Endpoint = Schema.Union([
+  UnknownEndpoint,
+  OpenAIResponses,
+  OpenAICompletions,
+  AnthropicMessages,
+  AISDK,
+]).pipe(Schema.toTaggedUnion("type"))
 export type Endpoint = typeof Endpoint.Type
 
 export const Options = Schema.Struct({
   headers: Schema.Record(Schema.String, Schema.String),
   body: Schema.Record(Schema.String, Schema.Any),
+  aisdk: Schema.Struct({
+    provider: Schema.Record(Schema.String, Schema.Any),
+    request: Schema.Record(Schema.String, Schema.Any),
+  }),
 })
 export type Options = typeof Options.Type
 
 export class Info extends Schema.Class<Info>("ProviderV2.Info")({
   id: ID,
   name: Schema.String,
-  enabled: Schema.Boolean,
+  enabled: Schema.Union([
+    Schema.Literal(false),
+    Schema.Struct({
+      via: Schema.Literal("env"),
+      name: Schema.String,
+    }),
+    Schema.Struct({
+      via: Schema.Literal("auth"),
+      service: Schema.String,
+    }),
+    Schema.Struct({
+      via: Schema.Literal("custom"),
+      data: Schema.Record(Schema.String, Schema.Any),
+    }),
+  ]),
   env: Schema.String.pipe(Schema.Array),
   endpoint: Endpoint,
   options: Options,
@@ -87,6 +110,10 @@ export class Info extends Schema.Class<Info>("ProviderV2.Info")({
       options: {
         headers: {},
         body: {},
+        aisdk: {
+          provider: {},
+          request: {},
+        },
       },
     })
   }

@@ -1,6 +1,7 @@
 export * as PluginV2 from "./plugin"
 
 import { createDraft, finishDraft, type Draft } from "immer"
+import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { type ModelV2 } from "./model"
 import { type ProviderV2 } from "./provider"
 import { Context, Effect, Layer, Schema } from "effect"
@@ -16,6 +17,18 @@ export type Hooks = {
   "model.update": {
     model: Draft<ModelV2.Info>
     cancel: boolean
+  }
+  "aisdk.language": {
+    readonly model: ModelV2.Info
+    readonly sdk: any
+    readonly options: Record<string, any>
+    language?: LanguageModelV3
+  }
+  "aisdk.sdk": {
+    readonly model: ModelV2.Info
+    readonly package: string
+    readonly options: Record<string, any>
+    sdk?: any
   }
 }
 

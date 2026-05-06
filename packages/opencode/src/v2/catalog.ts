@@ -1,5 +1,6 @@
 export * as Catalog from "./catalog"
 
+import { Config } from "@/config/config"
 import { Context, Effect, HashMap, Layer, Option, Order, pipe, Schema, Array } from "effect"
 import { produce, type Draft } from "immer"
 import { ModelV2 } from "./model"
@@ -9,6 +10,65 @@ import { ProviderV2 } from "./provider"
 type ProviderRecord = {
   provider: ProviderV2.Info
   models: HashMap.HashMap<ModelV2.ID, ModelV2.Info>
+}
+
+const defaultPriority = ["gpt-5", "claude-sonnet-4", "big-pickle", "gemini-3-pro"]
+
+function sortDefaultModels(models: ModelV2.Info[]) {
+  return [...models].sort((a, b) => {
+    const priority =
+      defaultPriority.findIndex((filter) => b.id.includes(filter)) -
+      defaultPriority.findIndex((filter) => a.id.includes(filter))
+    if (priority !== 0) return priority
+
+    const latest = (a.id.includes("latest") ? 0 : 1) - (b.id.includes("latest") ? 0 : 1)
+    if (latest !== 0) return latest
+
+    return b.id.localeCompare(a.id)
+  })
+}
+
+function smallPriority(providerID: ProviderV2.ID) {
+  const base = [
+    "claude-haiku-4-5",
+    "claude-haiku-4.5",
+    "3-5-haiku",
+    "3.5-haiku",
+    "gemini-3-flash",
+    "gemini-2.5-flash",
+    "gpt-5-nano",
+  ]
+  if (providerID.startsWith("opencode")) return ["gpt-5-nano"]
+  if (providerID.startsWith("github-copilot")) return ["gpt-5-mini", "claude-haiku-4.5", ...base]
+  return base
+}
+
+function findSmallModel(providerID: ProviderV2.ID, models: ModelV2.Info[]) {
+  for (const item of smallPriority(providerID)) {
+    if (providerID === ProviderV2.ID.amazonBedrock) {
+      const candidates = models.filter((model) => model.id.includes(item))
+      const globalMatch = candidates.find((model) => model.id.startsWith("global."))
+      if (globalMatch) return globalMatch
+
+      const region = candidates
+        .map((model) => model.options.aisdk.provider.region)
+        .find((value): value is string => typeof value === "string")
+      const regionPrefix = region?.split("-")[0]
+      if (regionPrefix === "us" || regionPrefix === "eu") {
+        const regionalMatch = candidates.find((model) => model.id.startsWith(`${regionPrefix}.`))
+        if (regionalMatch) return regionalMatch
+      }
+
+      const unprefixed = candidates.find(
+        (model) => !["global.", "us.", "eu."].some((prefix) => model.id.startsWith(prefix)),
+      )
+      if (unprefixed) return unprefixed
+      continue
+    }
+
+    const match = models.find((model) => model.id.includes(item))
+    if (match) return match
+  }
 }
 
 export class ProviderNotFoundError extends Schema.TaggedErrorClass<ProviderNotFoundError>()(
@@ -70,6 +130,13 @@ export const layer = Layer.effect(
             ...provider.options.body,
             ...model.options.body,
           },
+          aisdk: {
+            provider: {
+              ...provider.options.aisdk.provider,
+              ...model.options.aisdk.provider,
+            },
+            request: model.options.aisdk.request,
+          },
           variant: model.options.variant,
         },
       })
@@ -95,7 +162,6 @@ export const layer = Layer.effect(
             provider,
             cancel: false,
           })
-          if (updated.cancel) return
           records = HashMap.set(records, providerID, {
             provider: updated.provider,
             models: current?.models ?? HashMap.empty<ModelV2.ID, ModelV2.Info>(),
@@ -156,16 +222,41 @@ export const layer = Layer.effect(
         available: Effect.fn("CatalogV2.model.available")(function* () {
           return (yield* result.model.all()).filter((model) => {
             const record = Option.getOrUndefined(HashMap.get(records, model.providerID))
-            return record?.provider.enabled === true && model.status !== "deprecated"
+            return record?.provider.enabled !== false && model.enabled
           })
         }),
 
         default: Effect.fn("CatalogV2.model.default")(function* () {
-          return Option.fromUndefinedOr((yield* result.model.all())[0])
+          const config = Option.getOrUndefined(yield* Effect.serviceOption(Config.Service))
+          const cfg = config ? yield* config.get() : undefined
+          if (cfg?.model) {
+            const parsed = ModelV2.parse(cfg.model)
+            const model = yield* result.model.get(parsed.providerID, parsed.modelID).pipe(Effect.option)
+            if (Option.isSome(model) && model.value.enabled) return model
+          }
+
+          const available = (yield* result.model.available()).filter((model) => {
+            if (!cfg?.provider) return true
+            return model.providerID in cfg.provider
+          })
+          return Option.fromUndefinedOr(sortDefaultModels(available)[0])
         }),
 
         small: Effect.fn("CatalogV2.model.small")(function* (providerID) {
-          throw new Error("Not implemented")
+          const config = Option.getOrUndefined(yield* Effect.serviceOption(Config.Service))
+          const cfg = config ? yield* config.get() : undefined
+          if (cfg?.small_model) {
+            const parsed = ModelV2.parse(cfg.small_model)
+            const model = yield* result.model.get(parsed.providerID, parsed.modelID).pipe(Effect.option)
+            if (Option.isSome(model) && model.value.enabled) return model
+          }
+
+          return Option.fromUndefinedOr(
+            findSmallModel(
+              providerID,
+              (yield* result.model.available()).filter((model) => model.providerID === providerID),
+            ),
+          )
         }),
       },
     }

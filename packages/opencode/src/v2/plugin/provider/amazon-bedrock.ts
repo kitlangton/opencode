@@ -1,0 +1,86 @@
+import { Effect } from "effect"
+import { PluginV2 } from "../../plugin"
+import { ProviderV2 } from "../../provider"
+
+function resolveModelID(modelID: string, region: string | undefined) {
+  const crossRegionPrefixes = ["global.", "us.", "eu.", "jp.", "apac.", "au."]
+  if (crossRegionPrefixes.some((prefix) => modelID.startsWith(prefix))) return modelID
+
+  const resolvedRegion = region ?? "us-east-1"
+  const regionPrefix = resolvedRegion.split("-")[0]
+  if (regionPrefix === "us") {
+    const requiresPrefix = ["nova-micro", "nova-lite", "nova-pro", "nova-premier", "nova-2", "claude", "deepseek"].some(
+      (item) => modelID.includes(item),
+    )
+    if (requiresPrefix && !resolvedRegion.startsWith("us-gov")) return `${regionPrefix}.${modelID}`
+    return modelID
+  }
+  if (regionPrefix === "eu") {
+    const regionRequiresPrefix = [
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "eu-central-1",
+      "eu-south-1",
+      "eu-south-2",
+    ].some((item) => resolvedRegion.includes(item))
+    const modelRequiresPrefix = ["claude", "nova-lite", "nova-micro", "llama3", "pixtral"].some((item) =>
+      modelID.includes(item),
+    )
+    return regionRequiresPrefix && modelRequiresPrefix ? `${regionPrefix}.${modelID}` : modelID
+  }
+  if (regionPrefix !== "ap") return modelID
+
+  const australia = ["ap-southeast-2", "ap-southeast-4"].includes(resolvedRegion)
+  if (australia && ["anthropic.claude-sonnet-4-5", "anthropic.claude-haiku"].some((item) => modelID.includes(item))) {
+    return `au.${modelID}`
+  }
+
+  const prefix = resolvedRegion === "ap-northeast-1" ? "jp" : "apac"
+  return ["claude", "nova-lite", "nova-micro", "nova-pro"].some((item) => modelID.includes(item))
+    ? `${prefix}.${modelID}`
+    : modelID
+}
+
+export const AmazonBedrockPlugin = {
+  id: PluginV2.ID.make("amazon-bedrock"),
+  definition: Effect.gen(function* () {
+    return {
+      "aisdk.sdk": Effect.fn(function* (evt) {
+        if (evt.package !== "@ai-sdk/amazon-bedrock") return
+        const mod = yield* Effect.promise(() => import("@ai-sdk/amazon-bedrock"))
+        const options = { ...evt.options }
+        const profile = typeof options.profile === "string" ? options.profile : process.env.AWS_PROFILE
+        const region = typeof options.region === "string" ? options.region : (process.env.AWS_REGION ?? "us-east-1")
+        const endpoint =
+          typeof options.endpoint === "string"
+            ? options.endpoint
+            : typeof options.baseURL === "string"
+              ? options.baseURL
+              : undefined
+        const bearerToken =
+          process.env.AWS_BEARER_TOKEN_BEDROCK ??
+          (typeof options.bearerToken === "string" ? options.bearerToken : undefined)
+        if (bearerToken && !process.env.AWS_BEARER_TOKEN_BEDROCK) process.env.AWS_BEARER_TOKEN_BEDROCK = bearerToken
+        const containerCreds = Boolean(
+          process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI || process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI,
+        )
+
+        options.region = region
+        if (endpoint) options.baseURL = endpoint
+        if (!bearerToken && (profile || process.env.AWS_ACCESS_KEY_ID || process.env.AWS_WEB_IDENTITY_TOKEN_FILE || containerCreds)) {
+          const { fromNodeProviderChain } = yield* Effect.promise(() => import("@aws-sdk/credential-providers"))
+          options.credentialProvider = fromNodeProviderChain(profile ? { profile } : {})
+        }
+
+        evt.sdk = mod.createAmazonBedrock(options)
+      }),
+      "aisdk.language": Effect.fn(function* (evt) {
+        if (evt.model.providerID !== ProviderV2.ID.amazonBedrock) return
+        const region = typeof evt.options.region === "string" ? evt.options.region : undefined
+        evt.language = evt.sdk.languageModel(resolveModelID(evt.model.apiID, region))
+      }),
+    } satisfies PluginV2.HookFunctions
+  }),
+}

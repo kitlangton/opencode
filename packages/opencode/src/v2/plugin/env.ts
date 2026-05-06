@@ -1,20 +1,18 @@
 import { Effect } from "effect"
-import { Catalog } from "../catalog"
 import { PluginV2 } from "../plugin"
 
 export const EnvPlugin = {
   id: PluginV2.ID.make("env"),
   definition: Effect.gen(function* () {
-    const catalog = yield* Catalog.Service
-
-    for (const provider of yield* catalog.provider.all()) {
-      const key = provider.env.find((item) => process.env[item])
-      if (!key) continue
-      yield* catalog.provider.update(provider.id, (draft) => {
-        draft.enabled = true
-      })
-    }
-
-    return {} satisfies PluginV2.HookFunctions
+    return {
+      "provider.update": Effect.fn(function* (evt) {
+        const key = evt.provider.env.find((item) => process.env[item])
+        if (!key) return
+        evt.provider.enabled = {
+          via: "env",
+          name: key,
+        }
+      }),
+    } satisfies PluginV2.HookFunctions
   }),
 }
