@@ -27,7 +27,6 @@ import { isRecord } from "@/util/record"
 import { optionalOmitUndefined, withStatics } from "@/util/schema"
 import * as ProviderTransform from "./transform"
 import { ModelID, ProviderID } from "./schema"
-import { ModelV2 } from "@/v2/model"
 
 const log = Log.create({ service: "provider" })
 
@@ -1728,7 +1727,6 @@ export const defaultLayer = Layer.suspend(() =>
     Layer.provide(Auth.defaultLayer),
     Layer.provide(Plugin.defaultLayer),
     Layer.provide(ModelsDev.defaultLayer),
-    Layer.provide(ModelV2.defaultLayer),
   ),
 )
 

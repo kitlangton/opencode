@@ -23,6 +23,7 @@ import { isRecord } from "@/util/record"
 import { EventV2 } from "@/v2/event"
 import { SessionEvent } from "@/v2/session-event"
 import { ModelV2 } from "@/v2/model"
+import { ProviderV2 } from "@/v2/provider"
 import * as DateTime from "effect/DateTime"
 
 const DOOM_LOOP_THRESHOLD = 3
@@ -434,7 +435,7 @@ export const layer: Layer.Layer<
                 agent: input.assistantMessage.agent,
                 model: {
                   id: ModelV2.ID.make(ctx.model.id),
-                  providerID: ModelV2.ProviderID.make(ctx.model.providerID),
+                  providerID: ProviderV2.ID.make(ctx.model.providerID),
                   variant: ModelV2.VariantID.make(input.assistantMessage.variant ?? "default"),
                 },
                 snapshot: ctx.snapshot,

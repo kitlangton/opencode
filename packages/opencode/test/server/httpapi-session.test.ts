@@ -21,6 +21,7 @@ import { Database } from "@/storage/db"
 import { SessionMessageTable, SessionTable } from "@/session/session.sql"
 import { SessionMessage } from "../../src/v2/session-message"
 import { ModelV2 } from "../../src/v2/model"
+import { ProviderV2 } from "../../src/v2/provider"
 import * as DateTime from "effect/DateTime"
 import * as Log from "@opencode-ai/core/util/log"
 import { eq } from "drizzle-orm"
@@ -260,7 +261,7 @@ describe("session HttpApi", () => {
                 agent: "build",
                 model: {
                   id: ModelV2.ID.make("model"),
-                  providerID: ModelV2.ProviderID.make("provider"),
+                  providerID: ProviderV2.ID.make("provider"),
                   variant: ModelV2.VariantID.make("default"),
                 },
                 time: { created: DateTime.makeUnsafe(1) },

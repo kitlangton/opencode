@@ -3,6 +3,7 @@ import * as DateTime from "effect/DateTime"
 import { SessionID } from "../../src/session/schema"
 import { EventV2 } from "../../src/v2/event"
 import { ModelV2 } from "../../src/v2/model"
+import { ProviderV2 } from "../../src/v2/provider"
 import { SessionEvent } from "../../src/v2/session-event"
 import { SessionMessageUpdater } from "../../src/v2/session-message-updater"
 
@@ -19,7 +20,7 @@ test("step snapshots carry over to assistant messages", () => {
       agent: "build",
       model: {
         id: ModelV2.ID.make("model"),
-        providerID: ModelV2.ProviderID.make("provider"),
+        providerID: ProviderV2.ID.make("provider"),
         variant: ModelV2.VariantID.make("default"),
       },
       snapshot: "before",
@@ -63,7 +64,7 @@ test("text ended populates assistant text content", () => {
       agent: "build",
       model: {
         id: ModelV2.ID.make("model"),
-        providerID: ModelV2.ProviderID.make("provider"),
+        providerID: ProviderV2.ID.make("provider"),
         variant: ModelV2.VariantID.make("default"),
       },
     },
@@ -107,7 +108,7 @@ test("tool completion stores completed timestamp", () => {
       agent: "build",
       model: {
         id: ModelV2.ID.make("model"),
-        providerID: ModelV2.ProviderID.make("provider"),
+        providerID: ProviderV2.ID.make("provider"),
         variant: ModelV2.VariantID.make("default"),
       },
     },

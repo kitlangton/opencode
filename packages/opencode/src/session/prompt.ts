@@ -56,6 +56,7 @@ import { EffectBridge } from "@/effect/bridge"
 import { EventV2 } from "@/v2/event"
 import { SessionEvent } from "@/v2/session-event"
 import { ModelV2 } from "@/v2/model"
+import { ProviderV2 } from "@/v2/provider"
 import { AgentAttachment, FileAttachment, Source } from "@/v2/session-prompt"
 import * as DateTime from "effect/DateTime"
 import { eq } from "@/storage/db"
@@ -979,7 +980,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           timestamp: DateTime.makeUnsafe(info.time.created),
           model: {
             id: ModelV2.ID.make(info.model.modelID),
-            providerID: ModelV2.ProviderID.make(info.model.providerID),
+            providerID: ProviderV2.ID.make(info.model.providerID),
             variant: ModelV2.VariantID.make(info.model.variant ?? "default"),
           },
         })

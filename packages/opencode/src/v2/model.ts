@@ -1,36 +1,9 @@
-import { withStatics } from "@/util/schema"
-import { Array, Context, Effect, HashMap, Layer, Option, Order, pipe, Schema } from "effect"
+import { DateTime, Schema } from "effect"
 import { DateTimeUtcFromMillis } from "effect/Schema"
+import { ProviderV2 } from "./provider"
 
 export const ID = Schema.String.pipe(Schema.brand("ModelV2.ID"))
 export type ID = typeof ID.Type
-
-export const Key = Schema.String.pipe(
-  Schema.brand("ModelV2.Key"),
-  withStatics((schema) => ({
-    make: (providerID: ProviderID, modelID: ID) => schema.make(`${providerID}/${modelID}`),
-  })),
-)
-export type Key = typeof Key.Type
-
-export const ProviderID = Schema.String.pipe(
-  Schema.brand("ModelV2.ProviderID"),
-  withStatics((schema) => ({
-    // Well-known providers
-    opencode: schema.make("opencode"),
-    anthropic: schema.make("anthropic"),
-    openai: schema.make("openai"),
-    google: schema.make("google"),
-    googleVertex: schema.make("google-vertex"),
-    githubCopilot: schema.make("github-copilot"),
-    amazonBedrock: schema.make("amazon-bedrock"),
-    azure: schema.make("azure"),
-    openrouter: schema.make("openrouter"),
-    mistral: schema.make("mistral"),
-    gitlab: schema.make("gitlab"),
-  })),
-)
-export type ProviderID = typeof ProviderID.Type
 
 export const VariantID = Schema.String.pipe(Schema.brand("VariantID"))
 export type VariantID = typeof VariantID.Type
@@ -39,36 +12,6 @@ export type VariantID = typeof VariantID.Type
 export const Family = Schema.String.pipe(Schema.brand("Family"))
 export type Family = typeof Family.Type
 
-const OpenAIResponses = Schema.Struct({
-  type: Schema.Literal("openai/responses"),
-  url: Schema.String,
-  websocket: Schema.optional(Schema.Boolean),
-})
-
-const OpenAICompletions = Schema.Struct({
-  type: Schema.Literal("openai/completions"),
-  url: Schema.String,
-  reasoning: Schema.Union([
-    Schema.Struct({
-      type: Schema.Literal("reasoning_content"),
-    }),
-    Schema.Struct({
-      type: Schema.Literal("reasoning_details"),
-    }),
-  ]).pipe(Schema.optional),
-})
-export type OpenAICompletions = typeof OpenAICompletions.Type
-
-const AnthropicMessages = Schema.Struct({
-  type: Schema.Literal("anthropic/messages"),
-  url: Schema.String,
-})
-
-export const Endpoint = Schema.Union([OpenAIResponses, OpenAICompletions, AnthropicMessages]).pipe(
-  Schema.toTaggedUnion("type"),
-)
-export type Endpoint = typeof Endpoint.Type
-
 export const Capabilities = Schema.Struct({
   tools: Schema.Boolean,
   // mime patterns, image, audio, video/*, text/*
@@ -76,12 +19,6 @@ export const Capabilities = Schema.Struct({
   output: Schema.String.pipe(Schema.Array),
 })
 export type Capabilities = typeof Capabilities.Type
-
-export const Options = Schema.Struct({
-  headers: Schema.Record(Schema.String, Schema.String),
-  body: Schema.Record(Schema.String, Schema.Any),
-})
-export type Options = typeof Options.Type
 
 export const Cost = Schema.Struct({
   tier: Schema.Struct({
@@ -98,25 +35,25 @@ export const Cost = Schema.Struct({
 
 export const Ref = Schema.Struct({
   id: ID,
-  providerID: ProviderID,
+  providerID: ProviderV2.ID,
   variant: VariantID,
 })
 export type Ref = typeof Ref.Type
 
 export class Info extends Schema.Class<Info>("ModelV2.Info")({
   id: ID,
-  providerID: ProviderID,
+  providerID: ProviderV2.ID,
   family: Family.pipe(Schema.optional),
   name: Schema.String,
-  endpoint: Endpoint,
+  endpoint: ProviderV2.Endpoint,
   capabilities: Capabilities,
   options: Schema.Struct({
-    ...Options.fields,
+    ...ProviderV2.Options.fields,
     variant: Schema.String.pipe(Schema.optional),
   }),
   variants: Schema.Struct({
     id: VariantID,
-    ...Options.fields,
+    ...ProviderV2.Options.fields,
   }).pipe(Schema.Array),
   time: Schema.Struct({
     released: DateTimeUtcFromMillis,
@@ -128,69 +65,44 @@ export class Info extends Schema.Class<Info>("ModelV2.Info")({
     input: Schema.Int.pipe(Schema.optional),
     output: Schema.Int,
   }),
-}) {}
-
-export function parse(input: string): { providerID: ProviderID; modelID: ID } {
-  const [providerID, ...modelID] = input.split("/")
-  return {
-    providerID: ProviderID.make(providerID),
-    modelID: ID.make(modelID.join("/")),
+}) {
+  static empty(providerID: ProviderV2.ID, modelID: ID) {
+    return new Info({
+      id: modelID,
+      providerID,
+      name: modelID,
+      endpoint: {
+        type: "unknown",
+      },
+      capabilities: {
+        tools: false,
+        input: [],
+        output: [],
+      },
+      options: {
+        headers: {},
+        body: {},
+      },
+      variants: [],
+      time: {
+        released: DateTime.makeUnsafe(0),
+      },
+      cost: [],
+      status: "active",
+      limit: {
+        context: 0,
+        output: 0,
+      },
+    })
   }
 }
 
-export interface Interface {
-  readonly get: (providerID: ProviderID, modelID: ID) => Effect.Effect<Option.Option<Info>>
-  readonly add: (model: Info) => Effect.Effect<void>
-  readonly remove: (providerID: ProviderID, modelID: ID) => Effect.Effect<void>
-  readonly all: () => Effect.Effect<Info[]>
-  readonly default: () => Effect.Effect<Option.Option<Info>>
-  readonly small: (provider: ProviderID) => Effect.Effect<Option.Option<Info>>
+export function parse(input: string): { providerID: ProviderV2.ID; modelID: ID } {
+  const [providerID, ...modelID] = input.split("/")
+  return {
+    providerID: ProviderV2.ID.make(providerID),
+    modelID: ID.make(modelID.join("/")),
+  }
 }
-
-export class Service extends Context.Service<Service, Interface>()("@opencode/v2/Model") {}
-
-export const layer = Layer.effect(
-  Service,
-  Effect.gen(function* () {
-    let models = HashMap.empty<Key, Info>()
-
-    const result: Interface = {
-      get: Effect.fn("ModelV2.get")(function* (providerID, modelID) {
-        return HashMap.get(models, Key.make(providerID, modelID))
-      }),
-
-      add: Effect.fn("ModelV2.add")(function* (model) {
-        models = HashMap.set(models, Key.make(model.providerID, model.id), model)
-      }),
-
-      remove: Effect.fn("ModelV2.remove")(function* (providerID, modelID) {
-        models = HashMap.remove(models, Key.make(providerID, modelID))
-      }),
-
-      all: Effect.fn("ModelV2.all")(function* () {
-        return pipe(
-          models,
-          HashMap.toValues,
-          Array.sortWith((item) => item.time.released.epochMilliseconds, Order.flip(Order.Number)),
-        )
-      }),
-
-      default: Effect.fn("ModelV2.default")(function* () {
-        const all = yield* result.all()
-        return Option.fromUndefinedOr(all[0])
-      }),
-
-      small: Effect.fn("ModelV2.small")(function* (providerID) {
-        const all = yield* result.all()
-        const match = all.find((model) => model.providerID === providerID && model.id.toLowerCase().includes("small"))
-        return Option.fromUndefinedOr(match)
-      }),
-    }
-
-    return Service.of(result)
-  }),
-)
-
-export const defaultLayer = layer
 
 export * as ModelV2 from "./model"

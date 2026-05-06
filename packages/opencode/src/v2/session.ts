@@ -12,6 +12,7 @@ import { SessionEvent } from "./session-event"
 import { V2Schema } from "./schema"
 import { optionalOmitUndefined } from "@/util/schema"
 import { ModelV2 } from "./model"
+import { ProviderV2 } from "./provider"
 
 export const Delivery = Schema.Literals(["immediate", "deferred"]).annotate({
   identifier: "Session.Delivery",
@@ -130,7 +131,7 @@ export const layer = Layer.effect(
         model: row.model
           ? {
               id: ModelV2.ID.make(row.model.id),
-              providerID: ModelV2.ProviderID.make(row.model.providerID),
+              providerID: ProviderV2.ID.make(row.model.providerID),
               variant: ModelV2.VariantID.make(row.model.variant ?? "default"),
             }
           : undefined,

@@ -1,8 +1,9 @@
-export * as Plugin from "./plugin"
+export * as PluginV2 from "./plugin"
 
 import { createDraft, finishDraft, type Draft } from "immer"
 import { type ModelV2 } from "./model"
-import { Context, Effect, HashMap, Layer, Schema } from "effect"
+import { type ProviderV2 } from "./provider"
+import { Context, Effect, Layer, Schema } from "effect"
 import type { SessionID } from "@/session/schema"
 import type { SessionStatus } from "@/session/status"
 
@@ -10,10 +11,13 @@ export const ID = Schema.String.pipe(Schema.brand("Plugin.ID"))
 export type ID = typeof ID.Type
 
 export type Hooks = {
-  "model.add": {
-    readonly source: "env" | "config" | "custom" | "api"
-    model: ModelV2.Info
-    cancel?: boolean
+  "provider.update": {
+    provider: Draft<ProviderV2.Info>
+    cancel: boolean
+  }
+  "model.update": {
+    model: Draft<ModelV2.Info>
+    cancel: boolean
   }
   "session.status": {
     sessionID: SessionID
@@ -21,26 +25,25 @@ export type Hooks = {
   }
 }
 
-type Primitive = string | number | boolean | bigint | symbol | null | undefined
-
-type MutableKeys<T> = {
-  [key in keyof T]-?: { [target in key]: T[key] } extends { readonly [target in key]: T[key] } ? never : key
-}[keyof T]
-
-type HookInput<T> = {
-  readonly [key in keyof T]: key extends MutableKeys<T> ? (T[key] extends Primitive ? T[key] : Draft<T[key]>) : T[key]
-}
-
 export type HookFunctions = {
-  [key in keyof Hooks]: (input: HookInput<Hooks[key]>) => Effect.Effect<void>
+  [key in keyof Hooks]?: (input: Hooks[key]) => Effect.Effect<void>
 }
 
-export type Definition<R> = Effect.Effect<HookFunctions, never, R>
+export type HookInput<Name extends keyof Hooks> = {
+  [Field in keyof Hooks[Name]]: Hooks[Name][Field] extends Draft<infer T> ? T : Hooks[Name][Field]
+}
+
+export type Definition<R = never> = Effect.Effect<HookFunctions | void, never, R>
+
+type Registered = {
+  id: ID
+  hooks: HookFunctions
+}
 
 export interface Interface {
   readonly add: (input: { id: ID; hooks: HookFunctions }) => Effect.Effect<void>
   readonly remove: (id: ID) => Effect.Effect<void>
-  readonly trigger: <Name extends keyof Hooks>(name: Name, input: Hooks[Name]) => Effect.Effect<void>
+  readonly trigger: <Name extends keyof Hooks>(name: Name, input: HookInput<Name>) => Effect.Effect<HookInput<Name>>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/v2/Plugin") {}
@@ -48,23 +51,24 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/v2
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    let hooks = HashMap.empty<ID, HookFunctions>()
+    let hooks: Registered[] = []
 
     const svc = Service.of({
       add: Effect.fn("Plugin.add")(function* (input) {
-        hooks = HashMap.set(hooks, input.id, input.hooks)
+        hooks = [...hooks.filter((item) => item.id !== input.id), input]
       }),
       trigger: Effect.fn("Plugin.trigger")(function* (name, input) {
         const draft = createDraft(input)
-        for (const hook of HashMap.values(hooks)) {
-          const match = hook[name]
+        for (const item of hooks) {
+          const match = item.hooks[name]
           if (!match) continue
           yield* match(draft as any)
         }
-        return finishDraft(draft)
+        const result = finishDraft(draft)
+        return result as any
       }),
       remove: Effect.fn("Plugin.remove")(function* (id) {
-        hooks = HashMap.remove(hooks, id)
+        hooks = hooks.filter((item) => item.id !== id)
       }),
     })
     return svc
