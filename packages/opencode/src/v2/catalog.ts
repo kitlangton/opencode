@@ -192,16 +192,41 @@ export const layer = Layer.effect(
         small: Effect.fn("CatalogV2.model.small")(function* (providerID) {
           const record = Option.getOrUndefined(HashMap.get(records, providerID))
           if (!record) return Option.none<ModelV2.Info>()
-          return pipe(
+
+          const candidates = pipe(
             HashMap.toValues(record.models),
-            Array.filter((model) => model.providerID === providerID && model.enabled && model.status === "active"),
-            Array.sortWith(
+            Array.filter(
               (model) =>
-                [model.cost[0]?.output ?? Number.POSITIVE_INFINITY, -model.time.released.epochMilliseconds] as const,
-              Order.Tuple([Order.Number, Order.Number]),
+                model.providerID === providerID &&
+                model.enabled &&
+                model.status === "active" &&
+                model.capabilities.input.some((item) => item.startsWith("text")) &&
+                model.capabilities.output.some((item) => item.startsWith("text")),
             ),
-            Array.map(resolve),
-            Array.head,
+            Array.map((model) => ({
+              model,
+              cost: model.cost[0] ? model.cost[0].input + model.cost[0].output : 999,
+              age: (Date.now() - model.time.released.epochMilliseconds) / (1000 * 60 * 60 * 24 * 30),
+              small: SMALL_MODEL_RE.test(`${model.id} ${model.family ?? ""} ${model.name}`.toLowerCase()),
+            })),
+            Array.filter((item) => item.cost > 0 && item.age <= 18),
+          )
+
+          const pick = (items: typeof candidates) => {
+            const maxCost = Math.max(...items.map((item) => item.cost), 0.01)
+            const maxAge = Math.max(...items.map((item) => item.age), 0.01)
+            return pipe(
+              items,
+              Array.sortWith((item) => (item.cost / maxCost) * 0.8 + (item.age / maxAge) * 0.2, Order.Number),
+              Array.map((item) => resolve(item.model)),
+              Array.head,
+            )
+          }
+
+          return pipe(
+            candidates,
+            Array.filter((item) => item.small),
+            (items) => (items.length > 0 ? pick(items) : pick(candidates)),
           )
         }),
       },
@@ -210,5 +235,7 @@ export const layer = Layer.effect(
     return Service.of(result)
   }),
 )
+
+const SMALL_MODEL_RE = /\b(nano|flash|lite|mini|haiku|small|fast)\b/
 
 export const defaultLayer = layer.pipe(Layer.provide(PluginV2.defaultLayer))
