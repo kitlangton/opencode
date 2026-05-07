@@ -7,6 +7,6 @@ export const modelHandlers = HttpApiBuilder.group(InstanceHttpApi, "v2.model", (
   Effect.gen(function* () {
     const catalog = yield* Catalog.Service
 
-    return handlers.handle("models", () => catalog.model.all())
+    return handlers.handle("models", () => catalog.model.available())
   }),
 )
