@@ -9,7 +9,7 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "v2.provid
     const catalog = yield* Catalog.Service
 
     return handlers
-      .handle("providers", () => catalog.provider.all())
+      .handle("providers", () => catalog.provider.available())
       .handle(
         "provider",
         Effect.fn(function* (ctx) {

@@ -14,7 +14,10 @@ import { GithubCopilotPlugin } from "./github-copilot"
 import { GooglePlugin } from "./google"
 import { GoogleVertexAnthropicPlugin, GoogleVertexPlugin } from "./google-vertex"
 import { GroqPlugin } from "./groq"
+import { KiloPlugin } from "./kilo"
+import { LLMGatewayPlugin } from "./llmgateway"
 import { MistralPlugin } from "./mistral"
+import { NvidiaPlugin } from "./nvidia"
 import { OpenAIPlugin } from "./openai"
 import { OpenAICompatiblePlugin } from "./openai-compatible"
 import { OpencodePlugin } from "./opencode"
@@ -25,6 +28,7 @@ import { TogetherAIPlugin } from "./togetherai"
 import { VercelPlugin } from "./vercel"
 import { VenicePlugin } from "./venice"
 import { XAIPlugin } from "./xai"
+import { ZenmuxPlugin } from "./zenmux"
 
 export const ProviderPlugins = [
   AlibabaPlugin,
@@ -44,7 +48,10 @@ export const ProviderPlugins = [
   GoogleVertexAnthropicPlugin,
   GoogleVertexPlugin,
   GroqPlugin,
+  KiloPlugin,
+  LLMGatewayPlugin,
   MistralPlugin,
+  NvidiaPlugin,
   OpencodePlugin,
   OpenAICompatiblePlugin,
   OpenAIPlugin,
@@ -55,5 +62,6 @@ export const ProviderPlugins = [
   VercelPlugin,
   VenicePlugin,
   XAIPlugin,
+  ZenmuxPlugin,
   DynamicProviderPlugin,
 ]

@@ -19,4 +19,63 @@ describe("OpenAICompatiblePlugin", () => {
       expect(disabled.options.includeUsage).toBe(false)
     }),
   )
+
+  it.effect("defaults includeUsage for OpenAI-compatible package matches", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      yield* plugin.add(OpenAICompatiblePlugin)
+      const result = yield* plugin.trigger("aisdk.sdk", {
+        model: model("custom", "model"),
+        package: "file:///tmp/@ai-sdk/openai-compatible-provider.js",
+        options: {},
+      })
+      expect(result.options.includeUsage).toBe(true)
+    }),
+  )
+
+  it.effect("uses the provider ID as the OpenAI-compatible provider name", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      const observed: string[] = []
+      yield* plugin.add(OpenAICompatiblePlugin)
+      yield* plugin.add({
+        id: PluginV2.ID.make("inspector"),
+        effect: Effect.succeed({
+          "aisdk.sdk": (evt) =>
+            Effect.sync(() => {
+              observed.push(evt.sdk.languageModel("model").provider)
+            }),
+        }),
+      })
+      yield* plugin.trigger("aisdk.sdk", {
+        model: model("custom-provider", "model"),
+        package: "@ai-sdk/openai-compatible",
+        options: { baseURL: "https://example.com/v1" },
+      })
+      expect(observed).toEqual(["custom-provider.chat"])
+    }),
+  )
+
+  it.effect("does not overwrite an SDK created by an earlier provider-specific plugin", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      const sentinel = { languageModel: (modelID: string) => ({ modelID }) }
+      yield* plugin.add({
+        id: PluginV2.ID.make("sentinel"),
+        effect: Effect.succeed({
+          "aisdk.sdk": (evt) =>
+            Effect.sync(() => {
+              evt.sdk = sentinel
+            }),
+        }),
+      })
+      yield* plugin.add(OpenAICompatiblePlugin)
+      const result = yield* plugin.trigger("aisdk.sdk", {
+        model: model("cloudflare-workers-ai", "model"),
+        package: "@ai-sdk/openai-compatible",
+        options: {},
+      })
+      expect(result.sdk).toBe(sentinel)
+    }),
+  )
 })

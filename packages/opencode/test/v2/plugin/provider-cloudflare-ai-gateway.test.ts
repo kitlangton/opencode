@@ -1,8 +1,66 @@
-import { describe, expect } from "bun:test"
-import { Effect } from "effect"
+import { describe, expect, mock } from "bun:test"
+import { Cause, Effect, Exit } from "effect"
 import { PluginV2 } from "../../../src/v2/plugin"
 import { CloudflareAIGatewayPlugin } from "../../../src/v2/plugin/provider/cloudflare-ai-gateway"
 import { it, model, withEnv } from "./provider-helper"
+
+const aiGatewayCalls: Record<string, unknown>[] = []
+const unifiedCalls: string[] = []
+const gatewayModelCalls: unknown[] = []
+
+function captureAiGatewayOptions(options: Record<string, unknown>) {
+  const nested = options.options && typeof options.options === "object" ? (options.options as Record<string, unknown>) : undefined
+  return {
+    ...options,
+    ...(nested
+      ? {
+          options: {
+            ...nested,
+            headers: nested.headers && typeof nested.headers === "object" ? { ...(nested.headers as Record<string, unknown>) } : nested.headers,
+          },
+        }
+      : {}),
+  }
+}
+
+function resetCalls() {
+  aiGatewayCalls.length = 0
+  unifiedCalls.length = 0
+  gatewayModelCalls.length = 0
+}
+
+function cloudflareEnv(overrides: Record<string, string | undefined> = {}) {
+  return {
+    CLOUDFLARE_ACCOUNT_ID: "env-account",
+    CLOUDFLARE_GATEWAY_ID: "env-gateway",
+    CLOUDFLARE_API_TOKEN: "env-token",
+    CF_AIG_TOKEN: undefined,
+    ...overrides,
+  }
+}
+
+mock.module("ai-gateway-provider", () => ({
+  createAiGateway(options: Record<string, unknown>) {
+    aiGatewayCalls.push(captureAiGatewayOptions(options))
+    return (input: unknown) => {
+      gatewayModelCalls.push(input)
+      return {
+        modelId: input,
+        provider: "cloudflare-ai-gateway",
+        specificationVersion: "v3",
+      }
+    }
+  },
+}))
+
+mock.module("ai-gateway-provider/providers/unified", () => ({
+  createUnified() {
+    return (modelID: string) => {
+      unifiedCalls.push(modelID)
+      return { unifiedModelID: modelID }
+    }
+  },
+}))
 
 describe("CloudflareAIGatewayPlugin", () => {
   it.effect("requires account, gateway, and token before creating the unified SDK", () =>
@@ -19,6 +77,231 @@ describe("CloudflareAIGatewayPlugin", () => {
           })
           expect(result.sdk.languageModel("openai/gpt-5")).toBeDefined()
         }),
+    ),
+  )
+
+  it.effect("passes legacy metadata, cache, log, and User-Agent values under the AI Gateway options key", () =>
+    withEnv(cloudflareEnv(), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        yield* plugin.trigger("aisdk.sdk", {
+          model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+          package: "ai-gateway-provider",
+          options: {
+            metadata: { invoked_by: "test", project: "opencode" },
+            cacheTtl: 300,
+            cacheKey: "cache-key",
+            skipCache: true,
+            collectLog: false,
+          },
+        })
+
+        expect(aiGatewayCalls).toHaveLength(1)
+        expect(aiGatewayCalls[0]).toEqual({
+          accountId: "env-account",
+          gateway: "env-gateway",
+          apiKey: "env-token",
+          options: {
+            metadata: { invoked_by: "test", project: "opencode" },
+            cacheTtl: 300,
+            cacheKey: "cache-key",
+            skipCache: true,
+            collectLog: false,
+            headers: {
+              "User-Agent": expect.stringContaining("opencode/"),
+            },
+          },
+        })
+      }),
+    ),
+  )
+
+  it.effect("parses legacy cf-aig-metadata header when metadata option is absent", () =>
+    withEnv(cloudflareEnv(), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        yield* plugin.trigger("aisdk.sdk", {
+          model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+          package: "ai-gateway-provider",
+          options: {
+            headers: {
+              "cf-aig-metadata": JSON.stringify({ invoked_by: "header", project: "opencode" }),
+            },
+          },
+        })
+
+        expect(aiGatewayCalls[0]?.options).toMatchObject({
+          metadata: { invoked_by: "header", project: "opencode" },
+        })
+      }),
+    ),
+  )
+
+  it.effect("prefers Cloudflare env values over auth/config-derived options", () =>
+    withEnv(cloudflareEnv(), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        yield* plugin.trigger("aisdk.sdk", {
+          model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+          package: "ai-gateway-provider",
+          options: {
+            accountId: "auth-account",
+            gateway: "auth-gateway",
+            apiKey: "auth-token",
+          },
+        })
+
+        expect(aiGatewayCalls[0]).toMatchObject({
+          accountId: "env-account",
+          gateway: "env-gateway",
+          apiKey: "env-token",
+        })
+      }),
+    ),
+  )
+
+  it.effect("falls back to CF_AIG_TOKEN when CLOUDFLARE_API_TOKEN is unset", () =>
+    withEnv(cloudflareEnv({ CLOUDFLARE_API_TOKEN: undefined, CF_AIG_TOKEN: "cf-aig-token" }), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        yield* plugin.trigger("aisdk.sdk", {
+          model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+          package: "ai-gateway-provider",
+          options: {},
+        })
+
+        expect(aiGatewayCalls[0]).toMatchObject({ apiKey: "cf-aig-token" })
+      }),
+    ),
+  )
+
+  it.effect("reports both missing account and gateway IDs in one legacy error", () =>
+    withEnv(cloudflareEnv({ CLOUDFLARE_ACCOUNT_ID: undefined, CLOUDFLARE_GATEWAY_ID: undefined }), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        const exit = yield* plugin
+          .trigger("aisdk.sdk", {
+            model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+            package: "ai-gateway-provider",
+            options: {},
+          })
+          .pipe(Effect.exit)
+
+        expect(Exit.isFailure(exit)).toBe(true)
+        if (Exit.isFailure(exit)) {
+          const error = Cause.squash(exit.cause)
+          expect(error).toBeInstanceOf(Error)
+          if (!(error instanceof Error)) return
+          expect(error.message).toBe(
+            "CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_GATEWAY_ID missing. Set with: export CLOUDFLARE_ACCOUNT_ID=<value> && export CLOUDFLARE_GATEWAY_ID=<value>",
+          )
+        }
+      }),
+    ),
+  )
+
+  it.effect("includes the legacy auth command guidance when the token is missing", () =>
+    withEnv(cloudflareEnv({ CLOUDFLARE_API_TOKEN: undefined, CF_AIG_TOKEN: undefined }), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        const exit = yield* plugin
+          .trigger("aisdk.sdk", {
+            model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+            package: "ai-gateway-provider",
+            options: {},
+          })
+          .pipe(Effect.exit)
+
+        expect(Exit.isFailure(exit)).toBe(true)
+        if (Exit.isFailure(exit)) {
+          const error = Cause.squash(exit.cause)
+          expect(error).toBeInstanceOf(Error)
+          if (!(error instanceof Error)) return
+          expect(error.message).toBe(
+            "CLOUDFLARE_API_TOKEN (or CF_AIG_TOKEN) is required for Cloudflare AI Gateway. Set it via environment variable or run `opencode auth cloudflare-ai-gateway`.",
+          )
+        }
+      }),
+    ),
+  )
+
+  it.effect("does not replace a configured baseURL with the Cloudflare AI Gateway SDK", () =>
+    withEnv(cloudflareEnv({ CLOUDFLARE_ACCOUNT_ID: undefined, CLOUDFLARE_GATEWAY_ID: undefined, CLOUDFLARE_API_TOKEN: undefined }), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        const result = yield* plugin.trigger("aisdk.sdk", {
+          model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+          package: "ai-gateway-provider",
+          options: { baseURL: "https://proxy.example/v1" },
+        })
+
+        expect(result.sdk).toBeUndefined()
+        expect(aiGatewayCalls).toHaveLength(0)
+      }),
+    ),
+  )
+
+  it.effect("maps provider/model IDs through the unified Cloudflare provider unchanged", () =>
+    withEnv(cloudflareEnv(), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        const result = yield* plugin.trigger("aisdk.sdk", {
+          model: model("cloudflare-ai-gateway", "anthropic/claude-sonnet-4-5"),
+          package: "ai-gateway-provider",
+          options: {},
+        })
+
+        expect(result.sdk.languageModel("anthropic/claude-sonnet-4-5")).toEqual({
+          modelId: { unifiedModelID: "anthropic/claude-sonnet-4-5" },
+          provider: "cloudflare-ai-gateway",
+          specificationVersion: "v3",
+        })
+        expect(unifiedCalls).toEqual(["anthropic/claude-sonnet-4-5"])
+        expect(gatewayModelCalls).toEqual([{ unifiedModelID: "anthropic/claude-sonnet-4-5" }])
+      }),
+    ),
+  )
+
+  it.effect("ignores non Cloudflare AI Gateway packages", () =>
+    withEnv(cloudflareEnv(), () =>
+      Effect.gen(function* () {
+        resetCalls()
+        const plugin = yield* PluginV2.Service
+        yield* plugin.add(CloudflareAIGatewayPlugin)
+
+        const result = yield* plugin.trigger("aisdk.sdk", {
+          model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+          package: "@ai-sdk/openai-compatible",
+          options: {},
+        })
+
+        expect(result.sdk).toBeUndefined()
+        expect(aiGatewayCalls).toHaveLength(0)
+      }),
     ),
   )
 })

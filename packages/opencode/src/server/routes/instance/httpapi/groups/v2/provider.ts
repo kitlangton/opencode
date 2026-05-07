@@ -12,7 +12,7 @@ export const ProviderGroup = HttpApiGroup.make("v2.provider")
       OpenApi.annotations({
         identifier: "v2.provider.list",
         summary: "List v2 providers",
-        description: "Retrieve all v2 AI providers so clients can show provider availability and configuration.",
+        description: "Retrieve active v2 AI providers so clients can show provider availability and configuration.",
       }),
     ),
   )
