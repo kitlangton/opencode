@@ -26,7 +26,13 @@ import { it, model } from "./provider-helper"
 
 const cases = [
   { name: "AlibabaPlugin", plugin: AlibabaPlugin, providerID: "custom", package: "@ai-sdk/alibaba" },
-  { name: "AmazonBedrockPlugin", plugin: AmazonBedrockPlugin, providerID: "custom", package: "@ai-sdk/amazon-bedrock" },
+  {
+    name: "AmazonBedrockPlugin",
+    plugin: AmazonBedrockPlugin,
+    providerID: "custom",
+    package: "@ai-sdk/amazon-bedrock",
+    options: { bearerToken: "token" },
+  },
   { name: "AnthropicPlugin", plugin: AnthropicPlugin, providerID: "custom", package: "@ai-sdk/anthropic" },
   { name: "AzurePlugin", plugin: AzurePlugin, providerID: "custom", package: "@ai-sdk/azure" },
   { name: "CerebrasPlugin", plugin: CerebrasPlugin, providerID: "custom", package: "@ai-sdk/cerebras" },

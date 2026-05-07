@@ -91,23 +91,16 @@ describe("CloudflareWorkersAIPlugin", () => {
       {
         CLOUDFLARE_ACCOUNT_ID: undefined,
         CLOUDFLARE_API_KEY: undefined,
-        OPENCODE_AUTH_CONTENT: JSON.stringify({
-          version: 2,
-          accounts: {
-            account: {
-              id: "account",
-              serviceID: "cloudflare-workers-ai",
-              description: "default",
-              credential: { type: "api", key: "auth-key", metadata: { accountId: "auth-acct" } },
-            },
-          },
-          active: { "cloudflare-workers-ai": "account" },
-        }),
       },
       () =>
         Effect.gen(function* () {
           const plugin = yield* PluginV2.Service
           const auth = yield* AuthV2.Service
+          yield* auth.create({
+            serviceID: AuthV2.ServiceID.make("cloudflare-workers-ai"),
+            credential: new AuthV2.ApiKeyCredential({ type: "api", key: "auth-key", metadata: { accountId: "auth-acct" } }),
+            active: true,
+          })
           yield* plugin.add({ ...AuthPlugin, effect: AuthPlugin.effect.pipe(Effect.provideService(AuthV2.Service, auth)) })
           yield* plugin.add(CloudflareWorkersAIPlugin)
           const updated = yield* plugin.trigger("provider.update", {

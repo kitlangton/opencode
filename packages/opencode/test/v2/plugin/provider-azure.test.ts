@@ -43,23 +43,16 @@ describe("AzurePlugin", () => {
     withEnv(
       {
         AZURE_RESOURCE_NAME: "from-env",
-        OPENCODE_AUTH_CONTENT: JSON.stringify({
-          version: 2,
-          accounts: {
-            account: {
-              id: "account",
-              serviceID: "azure",
-              description: "default",
-              credential: { type: "api", key: "key", metadata: { resourceName: "from-auth" } },
-            },
-          },
-          active: { azure: "account" },
-        }),
       },
       () =>
         Effect.gen(function* () {
           const plugin = yield* PluginV2.Service
           const auth = yield* AuthV2.Service
+          yield* auth.create({
+            serviceID: AuthV2.ServiceID.make("azure"),
+            credential: new AuthV2.ApiKeyCredential({ type: "api", key: "key", metadata: { resourceName: "from-auth" } }),
+            active: true,
+          })
           yield* plugin.add({ ...AuthPlugin, effect: AuthPlugin.effect.pipe(Effect.provideService(AuthV2.Service, auth)) })
           yield* plugin.add(AzurePlugin)
           const result = yield* plugin.trigger("provider.update", { provider: provider("azure"), cancel: false })
@@ -134,9 +127,9 @@ describe("AzurePlugin", () => {
       const calls: string[] = []
       yield* plugin.add(AzurePlugin)
       yield* plugin.trigger("aisdk.language", {
-        model: model("azure", "deployment", { options: { headers: {}, body: {}, aisdk: { provider: {}, request: { useCompletionUrls: true } } } }),
+        model: model("azure", "deployment"),
         sdk: fakeSelectorSdk(calls),
-        options: {},
+        options: { useCompletionUrls: true },
       })
       expect(calls).toEqual(["chat:deployment"])
     }),

@@ -12,15 +12,15 @@ const itWithAISDK = testEffect(AISDK.layer.pipe(Layer.provideMerge(PluginV2.defa
 describe("GooglePlugin", () => {
   it.effect("creates a Google Generative AI SDK for @ai-sdk/google using the provider ID as SDK name", () =>
     Effect.gen(function* () {
-      const hooks = (yield* GooglePlugin.effect)!
-      const evt: PluginV2.HookInput<"aisdk.sdk"> = {
+      const plugin = yield* PluginV2.Service
+      yield* plugin.add(GooglePlugin)
+      const result = yield* plugin.trigger("aisdk.sdk", {
         model: model("custom-google", "gemini"),
         package: "@ai-sdk/google",
         options: { apiKey: "test" },
-      }
-      yield* hooks["aisdk.sdk"]!(evt)
-      expect(evt.sdk).toBeDefined()
-      expect(evt.sdk?.languageModel("gemini").provider).toBe("custom-google")
+      })
+      expect(result.sdk).toBeDefined()
+      expect(result.sdk?.languageModel("gemini").provider).toBe("custom-google")
     }),
   )
 

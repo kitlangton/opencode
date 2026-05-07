@@ -6,10 +6,11 @@ export const OpenAICompatiblePlugin = PluginV2.define({
   effect: Effect.gen(function* () {
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
-        if (evt.package !== "@ai-sdk/openai-compatible") return
+        if (evt.sdk) return
+        if (!evt.package.includes("@ai-sdk/openai-compatible")) return
         if (evt.options.includeUsage !== false) evt.options.includeUsage = true
         const mod = yield* Effect.promise(() => import("@ai-sdk/openai-compatible"))
-        evt.sdk = mod.createOpenAICompatible(evt.options as Parameters<typeof mod.createOpenAICompatible>[0])
+        evt.sdk = mod.createOpenAICompatible(evt.options as any)
       }),
     }
   }),

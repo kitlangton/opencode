@@ -1,4 +1,5 @@
 import { Effect } from "effect"
+import { ModelV2 } from "../../model"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
@@ -15,6 +16,11 @@ export const OpenRouterPlugin = PluginV2.define({
         if (evt.package !== "@openrouter/ai-sdk-provider") return
         const mod = yield* Effect.promise(() => import("@openrouter/ai-sdk-provider"))
         evt.sdk = mod.createOpenRouter(evt.options)
+      }),
+      "model.update": Effect.fn(function* (evt) {
+        if (evt.model.id === ModelV2.ID.make("gpt-5-chat-latest")) evt.cancel = true
+        if (evt.model.providerID === ProviderV2.ID.openrouter && evt.model.id === ModelV2.ID.make("openai/gpt-5-chat"))
+          evt.cancel = true
       }),
     }
   }),

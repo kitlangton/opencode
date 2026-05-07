@@ -16,16 +16,15 @@ export const AzurePlugin = PluginV2.define({
     return {
       "provider.update": Effect.fn(function* (evt) {
         if (evt.provider.id !== ProviderV2.ID.azure) return
+        const configured = evt.provider.options.aisdk.provider.resourceName
         const resourceName =
-          typeof evt.provider.options.aisdk.provider.resourceName === "string"
-            ? evt.provider.options.aisdk.provider.resourceName
-            : process.env.AZURE_RESOURCE_NAME
+          typeof configured === "string" && configured.trim() !== "" ? configured : process.env.AZURE_RESOURCE_NAME
         if (resourceName) evt.provider.options.aisdk.provider.resourceName = resourceName
       }),
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "@ai-sdk/azure") return
         if (evt.model.providerID === ProviderV2.ID.azure) {
-          if (!evt.options.resourceName && (evt.model.endpoint.type !== "aisdk" || !evt.model.endpoint.url)) {
+          if (!evt.options.resourceName && !evt.options.baseURL && (evt.model.endpoint.type !== "aisdk" || !evt.model.endpoint.url)) {
             throw new Error(
               "AZURE_RESOURCE_NAME is missing, set it using env var or reconnecting the azure provider and setting it",
             )
@@ -39,7 +38,7 @@ export const AzurePlugin = PluginV2.define({
         evt.language = selectLanguage(
           evt.sdk,
           evt.model.apiID,
-          Boolean(evt.model.options.aisdk.request.useCompletionUrls),
+          Boolean(evt.options.useCompletionUrls),
         )
       }),
     }
@@ -53,16 +52,14 @@ export const AzureCognitiveServicesPlugin = PluginV2.define({
       "provider.update": Effect.fn(function* (evt) {
         if (evt.provider.id !== ProviderV2.ID.make("azure-cognitive-services")) return
         const resourceName = process.env.AZURE_COGNITIVE_SERVICES_RESOURCE_NAME
-        if (resourceName && evt.provider.endpoint.type === "aisdk") {
-          evt.provider.endpoint.url = `https://${resourceName}.cognitiveservices.azure.com/openai`
-        }
+        if (resourceName) evt.provider.options.aisdk.provider.baseURL = `https://${resourceName}.cognitiveservices.azure.com/openai`
       }),
       "aisdk.language": Effect.fn(function* (evt) {
         if (evt.model.providerID !== ProviderV2.ID.make("azure-cognitive-services")) return
         evt.language = selectLanguage(
           evt.sdk,
           evt.model.apiID,
-          Boolean(evt.model.options.aisdk.request.useCompletionUrls),
+          Boolean(evt.options.useCompletionUrls),
         )
       }),
     }

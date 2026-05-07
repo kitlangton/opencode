@@ -50,11 +50,9 @@ describe("AzureCognitiveServicesPlugin", () => {
       const calls: string[] = []
       yield* plugin.add(AzureCognitiveServicesPlugin)
       yield* plugin.trigger("aisdk.language", {
-        model: model("azure-cognitive-services", "deployment", {
-          options: { headers: {}, body: {}, aisdk: { provider: {}, request: { useCompletionUrls: true } } },
-        }),
+        model: model("azure-cognitive-services", "deployment"),
         sdk: fakeSelectorSdk(calls),
-        options: {},
+        options: { useCompletionUrls: true },
       })
       expect(calls).toEqual(["chat:deployment"])
     }),

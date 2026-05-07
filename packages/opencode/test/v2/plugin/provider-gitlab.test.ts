@@ -140,24 +140,17 @@ describe("GitLabPlugin", () => {
     withEnv(
       {
         GITLAB_TOKEN: "env-token",
-        OPENCODE_AUTH_CONTENT: JSON.stringify({
-          version: 2,
-          accounts: {
-            account: {
-              id: "account",
-              serviceID: "gitlab",
-              description: "default",
-              credential: { type: "api", key: "auth-token" },
-            },
-          },
-          active: { gitlab: "account" },
-        }),
       },
       () =>
         Effect.gen(function* () {
           gitlabSDKOptions.length = 0
           const plugin = yield* PluginV2.Service
           const auth = yield* AuthV2.Service
+          yield* auth.create({
+            serviceID: AuthV2.ServiceID.make("gitlab"),
+            credential: new AuthV2.ApiKeyCredential({ type: "api", key: "auth-token" }),
+            active: true,
+          })
           yield* plugin.add({
             ...AuthPlugin,
             effect: AuthPlugin.effect.pipe(Effect.provideService(AuthV2.Service, auth)),
@@ -178,24 +171,22 @@ describe("GitLabPlugin", () => {
     withEnv(
       {
         GITLAB_TOKEN: undefined,
-        OPENCODE_AUTH_CONTENT: JSON.stringify({
-          version: 2,
-          accounts: {
-            account: {
-              id: "account",
-              serviceID: "gitlab",
-              description: "default",
-              credential: { type: "oauth", refresh: "refresh-token", access: "oauth-token", expires: 9999999999999 },
-            },
-          },
-          active: { gitlab: "account" },
-        }),
       },
       () =>
         Effect.gen(function* () {
           gitlabSDKOptions.length = 0
           const plugin = yield* PluginV2.Service
           const auth = yield* AuthV2.Service
+          yield* auth.create({
+            serviceID: AuthV2.ServiceID.make("gitlab"),
+            credential: new AuthV2.OAuthCredential({
+              type: "oauth",
+              refresh: "refresh-token",
+              access: "oauth-token",
+              expires: 9999999999999,
+            }),
+            active: true,
+          })
           yield* plugin.add({
             ...AuthPlugin,
             effect: AuthPlugin.effect.pipe(Effect.provideService(AuthV2.Service, auth)),

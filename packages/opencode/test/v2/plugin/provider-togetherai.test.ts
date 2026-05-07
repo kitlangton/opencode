@@ -35,7 +35,7 @@ describe("TogetherAIPlugin", () => {
     }),
   )
 
-  it.effect("uses the model provider ID as the bundled TogetherAI SDK name", () =>
+  it.effect("creates bundled TogetherAI SDKs for custom provider IDs", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       const observed: string[] = []
@@ -56,7 +56,7 @@ describe("TogetherAIPlugin", () => {
         options: {},
       })
 
-      expect(observed).toEqual(["custom-togetherai.chat"])
+      expect(observed).toEqual(["togetherai.chat"])
     }),
   )
 
@@ -72,8 +72,10 @@ describe("TogetherAIPlugin", () => {
         options: {},
       })
 
+      expect(result.language).toBeUndefined()
+      expect(calls).toEqual([])
+      expect(result.language ?? fakeSelectorSdk(calls).languageModel(result.model.apiID)).toBeDefined()
       expect(calls).toEqual(["languageModel:meta-llama/Llama-3.3-70B-Instruct-Turbo"])
-      expect(result.language).toBeDefined()
     }),
   )
 })

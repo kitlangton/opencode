@@ -1,4 +1,5 @@
 import { Effect } from "effect"
+import { ModelV2 } from "../../model"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
@@ -29,6 +30,9 @@ export const GithubCopilotPlugin = PluginV2.define({
         evt.language = shouldUseResponses(evt.model.apiID)
           ? evt.sdk.responses(evt.model.apiID)
           : evt.sdk.chat(evt.model.apiID)
+      }),
+      "model.update": Effect.fn(function* (evt) {
+        if (evt.model.id === ModelV2.ID.make("gpt-5-chat-latest")) evt.cancel = true
       }),
     }
   }),

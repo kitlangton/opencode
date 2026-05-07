@@ -91,7 +91,7 @@ describe("DeepInfraPlugin", () => {
         options: {},
       })
       expect(result.sdk).toBeDefined()
-      expect(deepinfraOptions).toEqual([{}])
+      expect(deepinfraOptions).toEqual([{ name: "deepinfra" }])
     }),
   )
 

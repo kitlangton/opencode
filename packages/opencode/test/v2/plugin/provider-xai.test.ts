@@ -41,7 +41,7 @@ describe("XAIPlugin", () => {
     }),
   )
 
-  it.effect("creates the xAI SDK using the provider ID as SDK name", () =>
+  it.effect("creates xAI SDKs for custom provider IDs", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       const providers: string[] = []
@@ -67,7 +67,7 @@ describe("XAIPlugin", () => {
         options: {},
       })
 
-      expect(providers).toEqual(["custom-xai.responses"])
+      expect(providers).toEqual(["xai.responses"])
     }),
   )
 

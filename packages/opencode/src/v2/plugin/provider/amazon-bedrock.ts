@@ -56,7 +56,6 @@ export const AmazonBedrockPlugin = PluginV2.define({
       }),
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "@ai-sdk/amazon-bedrock") return
-        const mod = yield* Effect.promise(() => import("@ai-sdk/amazon-bedrock"))
         const options = { ...evt.options }
         const profile = typeof options.profile === "string" ? options.profile : process.env.AWS_PROFILE
         const region = typeof options.region === "string" ? options.region : (process.env.AWS_REGION ?? "us-east-1")
@@ -67,8 +66,11 @@ export const AmazonBedrockPlugin = PluginV2.define({
         const containerCreds = Boolean(
           process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI || process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI,
         )
+        if (!profile && !process.env.AWS_ACCESS_KEY_ID && !bearerToken && !process.env.AWS_WEB_IDENTITY_TOKEN_FILE && !containerCreds)
+          return
 
         options.region = region
+        if (typeof options.endpoint === "string") options.baseURL = options.endpoint
         if (
           !bearerToken &&
           (profile || process.env.AWS_ACCESS_KEY_ID || process.env.AWS_WEB_IDENTITY_TOKEN_FILE || containerCreds)
@@ -77,11 +79,12 @@ export const AmazonBedrockPlugin = PluginV2.define({
           options.credentialProvider = fromNodeProviderChain(profile ? { profile } : {})
         }
 
+        const mod = yield* Effect.promise(() => import("@ai-sdk/amazon-bedrock"))
         evt.sdk = mod.createAmazonBedrock(options)
       }),
       "aisdk.language": Effect.fn(function* (evt) {
         if (evt.model.providerID !== ProviderV2.ID.amazonBedrock) return
-        const region = typeof evt.options.region === "string" ? evt.options.region : undefined
+        const region = typeof evt.options.region === "string" ? evt.options.region : process.env.AWS_REGION
         evt.language = evt.sdk.languageModel(resolveModelID(evt.model.apiID, region))
       }),
     }

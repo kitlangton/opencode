@@ -32,13 +32,7 @@ export const GitLabPlugin = PluginV2.define({
       }),
       "aisdk.language": Effect.fn(function* (evt) {
         if (evt.model.providerID !== ProviderV2.ID.gitlab) return
-        const featureFlags =
-          typeof evt.model.options.aisdk.request.featureFlags === "object" &&
-          evt.model.options.aisdk.request.featureFlags
-            ? evt.model.options.aisdk.request.featureFlags
-            : typeof evt.options.featureFlags === "object" && evt.options.featureFlags
-              ? evt.options.featureFlags
-              : {}
+        const featureFlags = typeof evt.options.featureFlags === "object" && evt.options.featureFlags ? evt.options.featureFlags : {}
         if (evt.model.apiID.startsWith("duo-workflow-")) {
           const gitlab = yield* Effect.promise(() => import("gitlab-ai-provider")).pipe(Effect.orDie)
           const workflowRef =
@@ -61,10 +55,7 @@ export const GitLabPlugin = PluginV2.define({
           return
         }
         evt.language = evt.sdk.agenticChat(evt.model.apiID, {
-          aiGatewayHeaders:
-            Object.keys(evt.model.options.headers).length > 0
-              ? evt.model.options.headers
-              : evt.options.aiGatewayHeaders,
+          aiGatewayHeaders: evt.options.aiGatewayHeaders,
           featureFlags,
         })
       }),

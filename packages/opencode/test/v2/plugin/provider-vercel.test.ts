@@ -36,19 +36,17 @@ describe("VercelPlugin", () => {
     }),
   )
 
-  it.effect("uses the model providerID as the @ai-sdk/vercel SDK name", () =>
+  it.effect("creates @ai-sdk/vercel SDKs for custom provider IDs", () =>
     Effect.gen(function* () {
-      const hooks = yield* VercelPlugin.effect
-      const hook = hooks?.["aisdk.sdk"]
-      if (!hook) throw new Error("VercelPlugin did not register aisdk.sdk")
-      const event: PluginV2.HookInput<"aisdk.sdk"> = {
+      const plugin = yield* PluginV2.Service
+      yield* plugin.add(VercelPlugin)
+      const event = yield* plugin.trigger("aisdk.sdk", {
         model: model("custom-vercel", "v0-1.0-md"),
         package: "@ai-sdk/vercel",
         options: {},
-      }
-      yield* hook(event)
+      })
       expect(event.sdk).toBeDefined()
-      expect(event.sdk.languageModel("v0-1.0-md").provider).toBe("custom-vercel.chat")
+      expect(event.sdk.languageModel("v0-1.0-md").provider).toBe("vercel.chat")
     }),
   )
 

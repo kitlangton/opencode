@@ -51,7 +51,7 @@ describe("PerplexityPlugin", () => {
     }),
   )
 
-  it.effect("uses the model provider ID as the SDK name for bundled Perplexity SDKs", () =>
+  it.effect("creates bundled Perplexity SDKs for custom provider IDs", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       const providers: string[] = []
@@ -70,7 +70,7 @@ describe("PerplexityPlugin", () => {
         package: "@ai-sdk/perplexity",
         options: {},
       })
-      expect(providers).toEqual(["custom-perplexity"])
+      expect(providers).toEqual(["perplexity"])
     }),
   )
 

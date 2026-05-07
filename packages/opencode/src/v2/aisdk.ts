@@ -1,7 +1,7 @@
 export * as AISDK from "./aisdk"
 
 import type { LanguageModelV3 } from "@ai-sdk/provider"
-import { Context, Effect, Layer, Schema } from "effect"
+import { Cause, Context, Effect, Layer, Schema } from "effect"
 import { ModelV2 } from "./model"
 import { PluginV2 } from "./plugin"
 import { ProviderV2 } from "./provider"
@@ -103,6 +103,10 @@ export class InitError extends Schema.TaggedErrorClass<InitError>()("AISDK.InitE
   cause: Schema.Defect,
 }) {}
 
+function initError(providerID: ProviderV2.ID) {
+  return Effect.catchCause((cause) => Effect.fail(new InitError({ providerID, cause: Cause.squash(cause) })))
+}
+
 export interface Interface {
   readonly language: (model: ModelV2.Info) => Effect.Effect<LanguageModelV3, InitError>
 }
@@ -134,19 +138,25 @@ export const layer = Layer.effect(
           options,
         })
         const sdk =
-          sdks.get(sdkKey) ?? (yield* plugin.trigger("aisdk.sdk", { model, package: model.endpoint.package, options })).sdk
+          sdks.get(sdkKey) ??
+          (yield* plugin.trigger("aisdk.sdk", { model, package: model.endpoint.package, options }).pipe(initError(model.providerID)))
+            .sdk
         if (!sdk)
           return yield* new InitError({
             providerID: model.providerID,
             cause: new Error("No AISDK provider plugin returned an SDK"),
           })
         sdks.set(sdkKey, sdk)
-        const result = yield* plugin.trigger("aisdk.language", {
-          model,
-          sdk,
-          options,
-        })
-        const language = result.language ?? sdk.languageModel(model.apiID)
+        const result = yield* plugin
+          .trigger("aisdk.language", {
+            model,
+            sdk,
+            options,
+          })
+          .pipe(initError(model.providerID))
+        const language = yield* Effect.sync(() => result.language ?? sdk.languageModel(model.apiID)).pipe(
+          initError(model.providerID),
+        )
         languages.set(key, language)
         return language
       }),
