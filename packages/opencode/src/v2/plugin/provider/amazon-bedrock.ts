@@ -47,18 +47,19 @@ export const AmazonBedrockPlugin = {
   id: PluginV2.ID.make("amazon-bedrock"),
   definition: Effect.gen(function* () {
     return {
+      "provider.update": Effect.fn(function* (evt) {
+        if (evt.provider.id !== ProviderV2.ID.amazonBedrock) return
+        if (evt.provider.endpoint.type !== "aisdk") return
+        if (typeof evt.provider.options.aisdk.provider.endpoint !== "string") return
+        evt.provider.endpoint.url = evt.provider.options.aisdk.provider.endpoint
+        delete evt.provider.options.aisdk.provider.endpoint
+      }),
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "@ai-sdk/amazon-bedrock") return
         const mod = yield* Effect.promise(() => import("@ai-sdk/amazon-bedrock"))
         const options = { ...evt.options }
         const profile = typeof options.profile === "string" ? options.profile : process.env.AWS_PROFILE
         const region = typeof options.region === "string" ? options.region : (process.env.AWS_REGION ?? "us-east-1")
-        const endpoint =
-          typeof options.endpoint === "string"
-            ? options.endpoint
-            : typeof options.baseURL === "string"
-              ? options.baseURL
-              : undefined
         const bearerToken =
           process.env.AWS_BEARER_TOKEN_BEDROCK ??
           (typeof options.bearerToken === "string" ? options.bearerToken : undefined)
@@ -68,7 +69,6 @@ export const AmazonBedrockPlugin = {
         )
 
         options.region = region
-        if (endpoint) options.baseURL = endpoint
         if (!bearerToken && (profile || process.env.AWS_ACCESS_KEY_ID || process.env.AWS_WEB_IDENTITY_TOKEN_FILE || containerCreds)) {
           const { fromNodeProviderChain } = yield* Effect.promise(() => import("@aws-sdk/credential-providers"))
           options.credentialProvider = fromNodeProviderChain(profile ? { profile } : {})

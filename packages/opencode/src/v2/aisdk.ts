@@ -58,6 +58,7 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 
 function prepareOptions(model: ModelV2.Info, pkg: string) {
   const options = { ...model.options.aisdk.provider }
+  if (model.endpoint.type === "aisdk" && model.endpoint.url) options.baseURL = model.endpoint.url
 
   const customFetch = options.fetch
   const chunkTimeout = options.chunkTimeout
@@ -130,7 +131,7 @@ export const layer = Layer.effect(
         const sdkKey = JSON.stringify({
           providerID: model.providerID,
           endpoint: model.endpoint,
-          options: model.options.aisdk.provider,
+          options,
         })
         const sdk =
           sdks.get(sdkKey) ?? (yield* plugin.trigger("aisdk.sdk", { model, package: model.endpoint.package, options })).sdk

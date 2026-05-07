@@ -80,6 +80,7 @@ export const ModelsDevPlugin = {
               ? {
                   type: "aisdk",
                   package: model.provider?.npm,
+                  url: model.provider.api,
                 }
               : {
                   type: "unknown",

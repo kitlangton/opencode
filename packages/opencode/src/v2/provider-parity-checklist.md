@@ -1,5 +1,7 @@
 # Unported Provider Logic Checklist
 
+This tracks legacy provider behavior from `packages/opencode/src/provider/provider.ts` that still needs to be ported into the v2 provider plugins under `packages/opencode/src/v2/plugin/provider/`. Keep entries checked only when v2 has equivalent behavior or when the item is intentionally skipped.
+
 ## Provider Setup
 
 - [x] Cloudflare AI Gateway custom SDK construction with `createAiGateway` / `createUnified`.
@@ -68,10 +70,10 @@
 
 ## URL And Env Vars
 
-- [ ] BaseURL `${VAR}` interpolation.
-- [ ] Azure `AZURE_RESOURCE_NAME` vars.
-- [ ] Google Vertex vars.
-- [ ] Cloudflare Workers AI vars.
+- [SKIP] BaseURL `${VAR}` interpolation — not porting generic URL templating; provider plugins should construct concrete URLs.
+- [x] Azure `AZURE_RESOURCE_NAME` vars. Handled by Azure provider plugins.
+- [x] Google Vertex vars. Handled by Google Vertex provider plugins.
+- [x] Cloudflare Workers AI vars. Handled by Cloudflare Workers AI provider plugin.
 
 ## Auth
 

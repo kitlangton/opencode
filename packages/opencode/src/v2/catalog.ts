@@ -62,28 +62,34 @@ export const layer = Layer.effect(
 
     const resolve = (model: ModelV2.Info) => {
       const provider = Option.getOrThrow(HashMap.get(records, model.providerID)).provider
-      const endpoint = model.endpoint.type === "unknown" ? provider.endpoint : model.endpoint
+      const endpoint =
+        model.endpoint.type === "unknown"
+          ? provider.endpoint
+          : model.endpoint.type === "aisdk" && provider.endpoint.type === "aisdk" && !model.endpoint.url
+            ? { ...model.endpoint, url: provider.endpoint.url }
+            : model.endpoint
+      const options = {
+        headers: {
+          ...provider.options.headers,
+          ...model.options.headers,
+        },
+        body: {
+          ...provider.options.body,
+          ...model.options.body,
+        },
+        aisdk: {
+          provider: {
+            ...provider.options.aisdk.provider,
+            ...model.options.aisdk.provider,
+          },
+          request: model.options.aisdk.request,
+        },
+        variant: model.options.variant,
+      }
       return new ModelV2.Info({
         ...model,
         endpoint,
-        options: {
-          headers: {
-            ...provider.options.headers,
-            ...model.options.headers,
-          },
-          body: {
-            ...provider.options.body,
-            ...model.options.body,
-          },
-          aisdk: {
-            provider: {
-              ...provider.options.aisdk.provider,
-              ...model.options.aisdk.provider,
-            },
-            request: model.options.aisdk.request,
-          },
-          variant: model.options.variant,
-        },
+        options,
       })
     }
 
@@ -102,7 +108,13 @@ export const layer = Layer.effect(
 
         update: Effect.fnUntraced(function* (providerID, fn) {
           const current = Option.getOrUndefined(HashMap.get(records, providerID))
-          const provider = produce(current?.provider ?? ProviderV2.Info.empty(providerID), fn)
+          const provider = produce(current?.provider ?? ProviderV2.Info.empty(providerID), (draft) => {
+            fn(draft)
+            if (draft.endpoint.type === "aisdk" && typeof draft.options.aisdk.provider.baseURL === "string") {
+              draft.endpoint.url = draft.options.aisdk.provider.baseURL
+              delete draft.options.aisdk.provider.baseURL
+            }
+          })
           const updated = yield* plugin.trigger("provider.update", {
             provider,
             cancel: false,
@@ -136,7 +148,13 @@ export const layer = Layer.effect(
           const record = yield* getRecord(providerID)
           const model = produce(
             HashMap.get(record.models, modelID).pipe(Option.getOrElse(() => ModelV2.Info.empty(providerID, modelID))),
-            fn,
+            (draft) => {
+              fn(draft)
+              if (draft.endpoint.type === "aisdk" && typeof draft.options.aisdk.provider.baseURL === "string") {
+                draft.endpoint.url = draft.options.aisdk.provider.baseURL
+                delete draft.options.aisdk.provider.baseURL
+              }
+            },
           )
           const updated = yield* plugin.trigger("model.update", {
             model,
