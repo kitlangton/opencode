@@ -4,9 +4,9 @@ import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
-export const GitLabPlugin = {
+export const GitLabPlugin = PluginV2.define({
   id: PluginV2.ID.make("gitlab"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "gitlab-ai-provider") return
@@ -17,10 +17,7 @@ export const GitLabPlugin = {
             typeof evt.options.instanceUrl === "string"
               ? evt.options.instanceUrl
               : (process.env.GITLAB_INSTANCE_URL ?? "https://gitlab.com"),
-          apiKey:
-            typeof evt.options.apiKey === "string"
-              ? evt.options.apiKey
-              : process.env.GITLAB_TOKEN,
+          apiKey: typeof evt.options.apiKey === "string" ? evt.options.apiKey : process.env.GITLAB_TOKEN,
           aiGatewayHeaders: {
             "User-Agent": `opencode/${InstallationVersion} gitlab-ai-provider/${mod.VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`,
             "anthropic-beta": "context-1m-2025-08-07",
@@ -36,7 +33,8 @@ export const GitLabPlugin = {
       "aisdk.language": Effect.fn(function* (evt) {
         if (evt.model.providerID !== ProviderV2.ID.gitlab) return
         const featureFlags =
-          typeof evt.model.options.aisdk.request.featureFlags === "object" && evt.model.options.aisdk.request.featureFlags
+          typeof evt.model.options.aisdk.request.featureFlags === "object" &&
+          evt.model.options.aisdk.request.featureFlags
             ? evt.model.options.aisdk.request.featureFlags
             : typeof evt.options.featureFlags === "object" && evt.options.featureFlags
               ? evt.options.featureFlags
@@ -51,10 +49,13 @@ export const GitLabPlugin = {
             typeof evt.model.options.aisdk.request.workflowDefinition === "string"
               ? evt.model.options.aisdk.request.workflowDefinition
               : undefined
-          const language = evt.sdk.workflowChat(gitlab.isWorkflowModel(evt.model.apiID) ? evt.model.apiID : "duo-workflow", {
-            featureFlags,
-            workflowDefinition,
-          })
+          const language = evt.sdk.workflowChat(
+            gitlab.isWorkflowModel(evt.model.apiID) ? evt.model.apiID : "duo-workflow",
+            {
+              featureFlags,
+              workflowDefinition,
+            },
+          )
           if (workflowRef) language.selectedModelRef = workflowRef
           evt.language = language
           return
@@ -67,6 +68,6 @@ export const GitLabPlugin = {
           featureFlags,
         })
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

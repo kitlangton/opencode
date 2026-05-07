@@ -43,9 +43,9 @@ function resolveModelID(modelID: string, region: string | undefined) {
     : modelID
 }
 
-export const AmazonBedrockPlugin = {
+export const AmazonBedrockPlugin = PluginV2.define({
   id: PluginV2.ID.make("amazon-bedrock"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "provider.update": Effect.fn(function* (evt) {
         if (evt.provider.id !== ProviderV2.ID.amazonBedrock) return
@@ -69,7 +69,10 @@ export const AmazonBedrockPlugin = {
         )
 
         options.region = region
-        if (!bearerToken && (profile || process.env.AWS_ACCESS_KEY_ID || process.env.AWS_WEB_IDENTITY_TOKEN_FILE || containerCreds)) {
+        if (
+          !bearerToken &&
+          (profile || process.env.AWS_ACCESS_KEY_ID || process.env.AWS_WEB_IDENTITY_TOKEN_FILE || containerCreds)
+        ) {
           const { fromNodeProviderChain } = yield* Effect.promise(() => import("@aws-sdk/credential-providers"))
           options.credentialProvider = fromNodeProviderChain(profile ? { profile } : {})
         }
@@ -81,6 +84,6 @@ export const AmazonBedrockPlugin = {
         const region = typeof evt.options.region === "string" ? evt.options.region : undefined
         evt.language = evt.sdk.languageModel(resolveModelID(evt.model.apiID, region))
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

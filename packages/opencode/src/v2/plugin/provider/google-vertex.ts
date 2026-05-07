@@ -2,9 +2,9 @@ import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
-export const GoogleVertexPlugin = {
+export const GoogleVertexPlugin = PluginV2.define({
   id: PluginV2.ID.make("google-vertex"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "@ai-sdk/google-vertex") return
@@ -43,13 +43,13 @@ export const GoogleVertexPlugin = {
         if (evt.model.providerID !== ProviderV2.ID.googleVertex) return
         evt.language = evt.sdk.languageModel(String(evt.model.apiID).trim())
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})
 
-export const GoogleVertexAnthropicPlugin = {
+export const GoogleVertexAnthropicPlugin = PluginV2.define({
   id: PluginV2.ID.make("google-vertex-anthropic"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "@ai-sdk/google-vertex/anthropic") return
@@ -70,6 +70,6 @@ export const GoogleVertexAnthropicPlugin = {
         if (evt.model.providerID !== ProviderV2.ID.make("google-vertex-anthropic")) return
         evt.language = evt.sdk.languageModel(String(evt.model.apiID).trim())
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

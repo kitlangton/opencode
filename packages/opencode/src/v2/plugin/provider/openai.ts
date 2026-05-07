@@ -2,9 +2,9 @@ import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
-export const OpenAIPlugin = {
+export const OpenAIPlugin = PluginV2.define({
   id: PluginV2.ID.make("openai"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "@ai-sdk/openai") return
@@ -15,6 +15,6 @@ export const OpenAIPlugin = {
         if (evt.model.providerID !== ProviderV2.ID.openai) return
         evt.language = evt.sdk.responses(evt.model.apiID)
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

@@ -2,9 +2,9 @@ import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
-export const OpencodePlugin = {
+export const OpencodePlugin = PluginV2.define({
   id: PluginV2.ID.make("opencode"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     let hasKey = false
     return {
       "provider.update": Effect.fn(function* (evt) {
@@ -17,6 +17,6 @@ export const OpencodePlugin = {
         if (hasKey) return
         if (evt.model.cost.some((item) => item.input > 0 || item.output > 0)) evt.cancel = true
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

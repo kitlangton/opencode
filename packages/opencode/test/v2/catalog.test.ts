@@ -101,14 +101,14 @@ describe("CatalogV2", () => {
 
       yield* plugin.add({
         id: PluginV2.ID.make("test"),
-        hooks: {
+        effect: Effect.succeed({
           "provider.update": (evt) =>
             Effect.sync(() => {
               seen.push(evt.provider.endpoint.type)
               if (evt.provider.endpoint.type === "aisdk") seen.push(evt.provider.endpoint.url)
               seen.push(evt.provider.options.aisdk.provider.baseURL)
             }),
-        },
+        }),
       })
       yield* catalog.provider.update(providerID, (provider) => {
         provider.endpoint = {
@@ -118,11 +118,7 @@ describe("CatalogV2", () => {
         provider.options.aisdk.provider.baseURL = "https://provider.example.com"
       })
 
-      expect(seen).toEqual([
-        "aisdk",
-        "https://provider.example.com",
-        undefined,
-      ])
+      expect(seen).toEqual(["aisdk", "https://provider.example.com", undefined])
     }),
   )
 

@@ -3,9 +3,9 @@ import { Effect, Option } from "effect"
 import { pathToFileURL } from "url"
 import { PluginV2 } from "../../plugin"
 
-export const DynamicProviderPlugin = {
+export const DynamicProviderPlugin = PluginV2.define({
   id: PluginV2.ID.make("dynamic-provider"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     const npm = yield* Npm.Service
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
@@ -26,6 +26,6 @@ export const DynamicProviderPlugin = {
 
         evt.sdk = mod[match](evt.options)
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

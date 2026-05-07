@@ -4,9 +4,9 @@ import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
-export const CloudflareWorkersAIPlugin = {
+export const CloudflareWorkersAIPlugin = PluginV2.define({
   id: PluginV2.ID.make("cloudflare-workers-ai"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "provider.update": Effect.fn(function* (evt) {
         if (evt.provider.id !== ProviderV2.ID.make("cloudflare-workers-ai")) return
@@ -20,7 +20,9 @@ export const CloudflareWorkersAIPlugin = {
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.model.providerID !== ProviderV2.ID.make("cloudflare-workers-ai")) return
         if (evt.model.endpoint.type !== "aisdk" || !evt.model.endpoint.url) {
-          throw new Error("CLOUDFLARE_ACCOUNT_ID is missing. Set it with: export CLOUDFLARE_ACCOUNT_ID=<your-account-id>")
+          throw new Error(
+            "CLOUDFLARE_ACCOUNT_ID is missing. Set it with: export CLOUDFLARE_ACCOUNT_ID=<your-account-id>",
+          )
         }
         const mod = yield* Effect.promise(() => import("@ai-sdk/openai-compatible"))
         evt.sdk = mod.createOpenAICompatible({
@@ -33,6 +35,6 @@ export const CloudflareWorkersAIPlugin = {
           name: "cloudflare-workers-ai",
         } as Parameters<typeof mod.createOpenAICompatible>[0])
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

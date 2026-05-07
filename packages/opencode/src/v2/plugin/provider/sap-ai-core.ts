@@ -4,18 +4,16 @@ import { pathToFileURL } from "url"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
-export const SapAICorePlugin = {
+export const SapAICorePlugin = PluginV2.define({
   id: PluginV2.ID.make("sap-ai-core"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     const npm = yield* Npm.Service
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.model.providerID !== ProviderV2.ID.make("sap-ai-core")) return
         const serviceKey =
           process.env.AICORE_SERVICE_KEY ??
-          (typeof evt.options.serviceKey === "string"
-            ? evt.options.serviceKey
-            : undefined)
+          (typeof evt.options.serviceKey === "string" ? evt.options.serviceKey : undefined)
         if (serviceKey && !process.env.AICORE_SERVICE_KEY) process.env.AICORE_SERVICE_KEY = serviceKey
 
         const installedPath = evt.package.startsWith("file://")
@@ -41,6 +39,6 @@ export const SapAICorePlugin = {
         if (evt.model.providerID !== ProviderV2.ID.make("sap-ai-core")) return
         evt.language = evt.sdk(evt.model.apiID)
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

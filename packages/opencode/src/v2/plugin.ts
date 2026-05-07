@@ -40,15 +40,14 @@ export type HookInput<Name extends keyof Hooks> = {
   [Field in keyof Hooks[Name]]: Hooks[Name][Field] extends Draft<infer T> ? T : Hooks[Name][Field]
 }
 
-export type Definition<R = never> = Effect.Effect<HookFunctions | void, never, R>
+export type Effect = Effect.Effect<HookFunctions | void, never, never>
 
-type Registered = {
-  id: ID
-  hooks: HookFunctions
+export function define<R>(input: { id: ID; effect: Effect.Effect<HookFunctions | void, never, R> }) {
+  return input
 }
 
 export interface Interface {
-  readonly add: (input: { id: ID; hooks: HookFunctions }) => Effect.Effect<void>
+  readonly add: (input: { id: ID; effect: Effect }) => Effect.Effect<void>
   readonly remove: (id: ID) => Effect.Effect<void>
   readonly trigger: <Name extends keyof Hooks>(name: Name, input: HookInput<Name>) => Effect.Effect<HookInput<Name>>
 }
@@ -58,11 +57,22 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/v2
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    let hooks: Registered[] = []
+    let hooks: {
+      id: ID
+      hooks: HookFunctions
+    }[] = []
 
     const svc = Service.of({
       add: Effect.fn("Plugin.add")(function* (input) {
-        hooks = [...hooks.filter((item) => item.id !== input.id), input]
+        const result = yield* input.effect
+        if (!result) return
+        hooks = [
+          ...hooks.filter((item) => item.id !== input.id),
+          {
+            id: input.id,
+            hooks: result,
+          },
+        ]
       }),
       trigger: Effect.fn("Plugin.trigger")(function* (name, input) {
         const draft = createDraft(input)

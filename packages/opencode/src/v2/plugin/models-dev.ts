@@ -49,9 +49,9 @@ function variants(model: ModelsDev.Model) {
   }))
 }
 
-export const ModelsDevPlugin = {
+export const ModelsDevPlugin = PluginV2.define({
   id: PluginV2.ID.make("models-dev"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     const catalog = yield* Catalog.Service
     const modelsDev = yield* ModelsDev.Service
     for (const item of Object.values(yield* modelsDev.get())) {
@@ -105,4 +105,4 @@ export const ModelsDevPlugin = {
       }
     }
   }).pipe(Effect.provide(ModelsDev.defaultLayer)),
-}
+})

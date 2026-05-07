@@ -1,9 +1,9 @@
 import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 
-export const CloudflareAIGatewayPlugin = {
+export const CloudflareAIGatewayPlugin = PluginV2.define({
   id: PluginV2.ID.make("cloudflare-ai-gateway"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "aisdk.sdk": Effect.fn(function* (evt) {
         if (evt.package !== "ai-gateway-provider") return
@@ -12,13 +12,9 @@ export const CloudflareAIGatewayPlugin = {
           Effect.orDie,
         )
         const accountId =
-          typeof evt.options.accountId === "string"
-            ? evt.options.accountId
-            : process.env.CLOUDFLARE_ACCOUNT_ID
+          typeof evt.options.accountId === "string" ? evt.options.accountId : process.env.CLOUDFLARE_ACCOUNT_ID
         const gatewayId =
-          typeof evt.options.gateway === "string"
-            ? evt.options.gateway
-            : process.env.CLOUDFLARE_GATEWAY_ID
+          typeof evt.options.gateway === "string" ? evt.options.gateway : process.env.CLOUDFLARE_GATEWAY_ID
         const apiKey =
           typeof evt.options.apiKey === "string"
             ? evt.options.apiKey
@@ -43,6 +39,6 @@ export const CloudflareAIGatewayPlugin = {
           },
         }
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})

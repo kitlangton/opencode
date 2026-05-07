@@ -8,9 +8,9 @@ function shouldUseResponses(modelID: string) {
   return Number(match[1]) >= 5 && !modelID.startsWith("gpt-5-mini")
 }
 
-export const GithubCopilotPlugin = {
+export const GithubCopilotPlugin = PluginV2.define({
   id: PluginV2.ID.make("github-copilot"),
-  definition: Effect.gen(function* () {
+  effect: Effect.gen(function* () {
     return {
       "provider.update": Effect.fn(function* (evt) {
         if (evt.provider.id !== ProviderV2.ID.githubCopilot) return
@@ -26,8 +26,10 @@ export const GithubCopilotPlugin = {
           evt.language = evt.sdk.languageModel(evt.model.apiID)
           return
         }
-        evt.language = shouldUseResponses(evt.model.apiID) ? evt.sdk.responses(evt.model.apiID) : evt.sdk.chat(evt.model.apiID)
+        evt.language = shouldUseResponses(evt.model.apiID)
+          ? evt.sdk.responses(evt.model.apiID)
+          : evt.sdk.chat(evt.model.apiID)
       }),
-    } satisfies PluginV2.HookFunctions
+    }
   }),
-}
+})
