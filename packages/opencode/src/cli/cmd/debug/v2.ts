@@ -36,9 +36,21 @@ export const V2Command = effectCmd({
       // load models
       yield* plugin.add(ModelsDevPlugin)
 
+      const providers = (yield* catalog.provider.available()).sort((a, b) => a.id.localeCompare(b.id))
+      const all = (yield* catalog.provider.all()).sort((a, b) => a.id.localeCompare(b.id))
       return {
-        providers: yield* catalog.provider.available(),
-        default: Option.getOrUndefined(yield* catalog.model.default()),
+        providers,
+        default: Option.getOrUndefined(Option.map(yield* catalog.model.default(), (model) => model.id)),
+        small: Object.fromEntries(
+          yield* Effect.all(
+            all.map((provider) =>
+              Effect.map(catalog.model.small(provider.id), (model) =>
+                [provider.id, Option.getOrUndefined(Option.map(model, (item) => item.id))] as const,
+              ),
+            ),
+            { concurrency: "unbounded" },
+          ),
+        ),
       }
     }).pipe(Effect.provide(layer), Effect.orDie)
 

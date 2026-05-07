@@ -60,11 +60,11 @@
 
 ## Small Models
 
-- [ ] Configured `small_model` selection.
-- [ ] Provider-specific small model priority.
-- [ ] Opencode small model priority.
-- [ ] GitHub Copilot small model priority.
-- [ ] Amazon Bedrock region-aware small model selection.
+- [SKIP] Configured `small_model` selection — not porting config-driven selection to server-side v2 catalog.
+- [x] Provider-specific small model priority. Replaced by cheapest output cost selection.
+- [x] Opencode small model priority. Replaced by cheapest output cost selection.
+- [x] GitHub Copilot small model priority. Replaced by cheapest output cost selection.
+- [x] Amazon Bedrock region-aware small model selection. Replaced by cheapest output cost selection.
 
 ## URL And Env Vars
 

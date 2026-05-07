@@ -11,49 +11,6 @@ type ProviderRecord = {
   models: HashMap.HashMap<ModelV2.ID, ModelV2.Info>
 }
 
-function smallPriority(providerID: ProviderV2.ID) {
-  const base = [
-    "claude-haiku-4-5",
-    "claude-haiku-4.5",
-    "3-5-haiku",
-    "3.5-haiku",
-    "gemini-3-flash",
-    "gemini-2.5-flash",
-    "gpt-5-nano",
-  ]
-  if (providerID.startsWith("opencode")) return ["gpt-5-nano"]
-  if (providerID.startsWith("github-copilot")) return ["gpt-5-mini", "claude-haiku-4.5", ...base]
-  return base
-}
-
-function findSmallModel(providerID: ProviderV2.ID, models: ModelV2.Info[]) {
-  for (const item of smallPriority(providerID)) {
-    if (providerID === ProviderV2.ID.amazonBedrock) {
-      const candidates = models.filter((model) => model.id.includes(item))
-      const globalMatch = candidates.find((model) => model.id.startsWith("global."))
-      if (globalMatch) return globalMatch
-
-      const region = candidates
-        .map((model) => model.options.aisdk.provider.region)
-        .find((value): value is string => typeof value === "string")
-      const regionPrefix = region?.split("-")[0]
-      if (regionPrefix === "us" || regionPrefix === "eu") {
-        const regionalMatch = candidates.find((model) => model.id.startsWith(`${regionPrefix}.`))
-        if (regionalMatch) return regionalMatch
-      }
-
-      const unprefixed = candidates.find(
-        (model) => !["global.", "us.", "eu."].some((prefix) => model.id.startsWith(prefix)),
-      )
-      if (unprefixed) return unprefixed
-      continue
-    }
-
-    const match = models.find((model) => model.id.includes(item))
-    if (match) return match
-  }
-}
-
 export class ProviderNotFoundError extends Schema.TaggedErrorClass<ProviderNotFoundError>()(
   "CatalogV2.ProviderNotFound",
   {
@@ -86,7 +43,10 @@ export interface Interface {
     readonly all: () => Effect.Effect<ModelV2.Info[]>
     readonly available: () => Effect.Effect<ModelV2.Info[]>
     readonly default: () => Effect.Effect<Option.Option<ModelV2.Info>>
-    readonly setDefault: (providerID: ProviderV2.ID, modelID: ModelV2.ID) => Effect.Effect<void, ProviderNotFoundError | ModelNotFoundError>
+    readonly setDefault: (
+      providerID: ProviderV2.ID,
+      modelID: ModelV2.ID,
+    ) => Effect.Effect<void, ProviderNotFoundError | ModelNotFoundError>
     readonly small: (providerID: ProviderV2.ID) => Effect.Effect<Option.Option<ModelV2.Info>>
   }
 }
@@ -140,7 +100,7 @@ export const layer = Layer.effect(
           return record.provider
         }),
 
-        update: Effect.fn("CatalogV2.provider.update")(function* (providerID, fn) {
+        update: Effect.fnUntraced(function* (providerID, fn) {
           const current = Option.getOrUndefined(HashMap.get(records, providerID))
           const provider = produce(current?.provider ?? ProviderV2.Info.empty(providerID), fn)
           const updated = yield* plugin.trigger("provider.update", {
@@ -172,7 +132,7 @@ export const layer = Layer.effect(
           return resolve(model)
         }),
 
-        update: Effect.fn("CatalogV2.model.update")(function* (providerID, modelID, fn) {
+        update: Effect.fnUntraced(function* (providerID, modelID, fn) {
           const record = yield* getRecord(providerID)
           const model = produce(
             HashMap.get(record.models, modelID).pipe(Option.getOrElse(() => ModelV2.Info.empty(providerID, modelID))),
@@ -230,11 +190,18 @@ export const layer = Layer.effect(
         }),
 
         small: Effect.fn("CatalogV2.model.small")(function* (providerID) {
-          return Option.fromUndefinedOr(
-            findSmallModel(
-              providerID,
-              (yield* result.model.available()).filter((model) => model.providerID === providerID),
+          const record = Option.getOrUndefined(HashMap.get(records, providerID))
+          if (!record) return Option.none<ModelV2.Info>()
+          return pipe(
+            HashMap.toValues(record.models),
+            Array.filter((model) => model.providerID === providerID && model.enabled && model.status === "active"),
+            Array.sortWith(
+              (model) =>
+                [model.cost[0]?.output ?? Number.POSITIVE_INFINITY, -model.time.released.epochMilliseconds] as const,
+              Order.Tuple([Order.Number, Order.Number]),
             ),
+            Array.map(resolve),
+            Array.head,
           )
         }),
       },

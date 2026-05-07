@@ -69,7 +69,14 @@ export const layer = Layer.effect(
         for (const item of hooks) {
           const match = item.hooks[name]
           if (!match) continue
-          yield* match(draft as any)
+          yield* match(draft as any).pipe(
+            Effect.withSpan(`Plugin.hook.${name}`, {
+              attributes: {
+                plugin: item.id,
+                hook: name,
+              },
+            }),
+          )
         }
         const result = finishDraft(draft)
         return result as any
