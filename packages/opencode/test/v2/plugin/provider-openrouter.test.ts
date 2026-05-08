@@ -7,20 +7,29 @@ import { expectPluginRegistered, it, model, provider } from "./provider-helper"
 
 describe("OpenRouterPlugin", () => {
   it.effect("is registered so legacy OpenRouter behavior can be applied", () =>
-    Effect.sync(() => expectPluginRegistered(ProviderPlugins.map((item) => item.id), "openrouter")),
+    Effect.sync(() =>
+      expectPluginRegistered(
+        ProviderPlugins.map((item) => item.id),
+        "openrouter",
+      ),
+    ),
   )
 
   it.effect("applies legacy referer headers only to openrouter", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenRouterPlugin)
-      const result = yield* plugin.trigger("provider.update", {
-        provider: provider("openrouter", {
-          options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
-        }),
-        cancel: false,
-      })
-      const ignored = yield* plugin.trigger("provider.update", { provider: provider("nvidia"), cancel: false })
+      const result = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("openrouter", {
+            options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
+          }),
+          cancel: false,
+        },
+      )
+      const ignored = yield* plugin.trigger("provider.update", {}, { provider: provider("nvidia"), cancel: false })
       expect(result.provider.options.headers).toEqual({
         Existing: "value",
         "HTTP-Referer": "https://opencode.ai/",
@@ -35,18 +44,22 @@ describe("OpenRouterPlugin", () => {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenRouterPlugin)
 
-      const ignored = yield* plugin.trigger("aisdk.sdk", {
-        model: model("openrouter", "openai/gpt-5"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const ignored = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("openrouter", "openai/gpt-5"),
+          package: "@ai-sdk/openai-compatible",
+          options: { name: "openrouter" },
+        },
+        {},
+      )
       expect(ignored.sdk).toBeUndefined()
 
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom", "openai/gpt-5"),
-        package: "@openrouter/ai-sdk-provider",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("custom", "openai/gpt-5"), package: "@openrouter/ai-sdk-provider", options: { name: "custom" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -55,18 +68,21 @@ describe("OpenRouterPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenRouterPlugin)
-      const result = yield* plugin.trigger("model.update", {
-        model: model("openrouter", "openai/gpt-5-chat"),
-        cancel: false,
-      })
-      const regular = yield* plugin.trigger("model.update", {
-        model: model("openrouter", "openai/gpt-5"),
-        cancel: false,
-      })
-      const ignored = yield* plugin.trigger("model.update", {
-        model: model("openai", "openai/gpt-5-chat"),
-        cancel: false,
-      })
+      const result = yield* plugin.trigger(
+        "model.update",
+        {},
+        { model: model("openrouter", "openai/gpt-5-chat"), cancel: false },
+      )
+      const regular = yield* plugin.trigger(
+        "model.update",
+        {},
+        { model: model("openrouter", "openai/gpt-5"), cancel: false },
+      )
+      const ignored = yield* plugin.trigger(
+        "model.update",
+        {},
+        { model: model("openai", "openai/gpt-5-chat"), cancel: false },
+      )
 
       expect(result.cancel).toBe(true)
       expect(regular.cancel).toBe(false)
@@ -78,10 +94,11 @@ describe("OpenRouterPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenRouterPlugin)
-      const result = yield* plugin.trigger("model.update", {
-        model: model("custom-openrouter", "gpt-5-chat-latest"),
-        cancel: false,
-      })
+      const result = yield* plugin.trigger(
+        "model.update",
+        {},
+        { model: model("custom-openrouter", "gpt-5-chat-latest"), cancel: false },
+      )
       expect(result.cancel).toBe(false)
     }),
   )

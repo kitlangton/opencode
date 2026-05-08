@@ -115,10 +115,7 @@ export const layer = Layer.effect(
               delete draft.options.aisdk.provider.baseURL
             }
           })
-          const updated = yield* plugin.trigger("provider.update", {
-            provider,
-            cancel: false,
-          })
+          const updated = yield* plugin.trigger("provider.update", {}, { provider, cancel: false })
           records = HashMap.set(records, providerID, {
             provider: updated.provider,
             models: current?.models ?? HashMap.empty<ModelV2.ID, ModelV2.Info>(),
@@ -156,10 +153,7 @@ export const layer = Layer.effect(
               }
             },
           )
-          const updated = yield* plugin.trigger("model.update", {
-            model,
-            cancel: false,
-          })
+          const updated = yield* plugin.trigger("model.update", {}, { model, cancel: false })
           if (updated.cancel) return
           records = HashMap.set(records, providerID, {
             provider: record.provider,

@@ -7,20 +7,29 @@ import { expectPluginRegistered, it, provider } from "./provider-helper"
 
 describe("KiloPlugin", () => {
   it.effect("is registered so legacy referer headers can be applied", () =>
-    Effect.sync(() => expectPluginRegistered(ProviderPlugins.map((item) => item.id), "kilo")),
+    Effect.sync(() =>
+      expectPluginRegistered(
+        ProviderPlugins.map((item) => item.id),
+        "kilo",
+      ),
+    ),
   )
 
   it.effect("applies legacy referer headers only to kilo", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(KiloPlugin)
-      const result = yield* plugin.trigger("provider.update", {
-        provider: provider("kilo", {
-          options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
-        }),
-        cancel: false,
-      })
-      const ignored = yield* plugin.trigger("provider.update", { provider: provider("openrouter"), cancel: false })
+      const result = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("kilo", {
+            options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
+          }),
+          cancel: false,
+        },
+      )
+      const ignored = yield* plugin.trigger("provider.update", {}, { provider: provider("openrouter"), cancel: false })
       expect(result.provider.options.headers).toEqual({
         Existing: "value",
         "HTTP-Referer": "https://opencode.ai/",
@@ -34,7 +43,7 @@ describe("KiloPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(KiloPlugin)
-      const result = yield* plugin.trigger("provider.update", { provider: provider("kilo"), cancel: false })
+      const result = yield* plugin.trigger("provider.update", {}, { provider: provider("kilo"), cancel: false })
 
       expect(result.provider.options.headers).toEqual({
         "HTTP-Referer": "https://opencode.ai/",
@@ -50,18 +59,26 @@ describe("KiloPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(KiloPlugin)
-      const matchingID = yield* plugin.trigger("provider.update", {
-        provider: provider("kilo", {
-          endpoint: { type: "aisdk", package: "not-kilo" },
-        }),
-        cancel: false,
-      })
-      const matchingPackage = yield* plugin.trigger("provider.update", {
-        provider: provider("custom-kilo", {
-          endpoint: { type: "aisdk", package: "kilo" },
-        }),
-        cancel: false,
-      })
+      const matchingID = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("kilo", {
+            endpoint: { type: "aisdk", package: "not-kilo" },
+          }),
+          cancel: false,
+        },
+      )
+      const matchingPackage = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("custom-kilo", {
+            endpoint: { type: "aisdk", package: "kilo" },
+          }),
+          cancel: false,
+        },
+      )
 
       expect(matchingID.provider.options.headers).toEqual({
         "HTTP-Referer": "https://opencode.ai/",

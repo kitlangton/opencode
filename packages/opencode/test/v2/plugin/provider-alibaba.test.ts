@@ -11,7 +11,11 @@ describe("AlibabaPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(AlibabaPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", { model: model("alibaba", "qwen"), package: "@ai-sdk/alibaba", options: {} })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("alibaba", "qwen"), package: "@ai-sdk/alibaba", options: { name: "alibaba" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -20,11 +24,11 @@ describe("AlibabaPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(AlibabaPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("alibaba", "qwen"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("alibaba", "qwen"), package: "@ai-sdk/openai-compatible", options: { name: "alibaba" } },
+        {},
+      )
       expect(result.sdk).toBeUndefined()
     }),
   )
@@ -33,11 +37,15 @@ describe("AlibabaPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(AlibabaPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-alibaba", "qwen"),
-        package: "@ai-sdk/alibaba",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-alibaba", "qwen"),
+          package: "@ai-sdk/alibaba",
+          options: { name: "custom-alibaba", apiKey: "test" },
+        },
+        {},
+      )
       const expected = createAlibaba({ apiKey: "test", ...{ name: "custom-alibaba" } }).languageModel("qwen")
       const actual = result.sdk?.languageModel("qwen")
       expect(actual?.provider).toBe(expected.provider)
@@ -50,11 +58,7 @@ describe("AlibabaPlugin", () => {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(AlibabaPlugin)
       const item = model("alibaba", "alias", { apiID: ModelV2.ID.make("qwen-plus") })
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: item,
-        package: "@ai-sdk/alibaba",
-        options: {},
-      })
+      const result = yield* plugin.trigger("aisdk.sdk", { model: item, package: "@ai-sdk/alibaba", options: {} }, {})
       const language = result.sdk?.languageModel(item.apiID)
       expect(language?.modelId).toBe("qwen-plus")
       expect(language?.provider).toBe("alibaba.chat")

@@ -44,16 +44,20 @@ describe("GoogleVertexPlugin", () => {
         Effect.gen(function* () {
           const plugin = yield* PluginV2.Service
           yield* plugin.add(GoogleVertexPlugin)
-          const result = yield* plugin.trigger("provider.update", {
-            provider: provider("google-vertex", {
-              endpoint: {
-                type: "aisdk",
-                package: "@ai-sdk/openai-compatible",
-                url: "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}",
-              },
-            }),
-            cancel: false,
-          })
+          const result = yield* plugin.trigger(
+            "provider.update",
+            {},
+            {
+              provider: provider("google-vertex", {
+                endpoint: {
+                  type: "aisdk",
+                  package: "@ai-sdk/openai-compatible",
+                  url: "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}",
+                },
+              }),
+              cancel: false,
+            },
+          )
           expect(result.provider.options.aisdk.provider.project).toBe("google-cloud-project")
           expect(result.provider.options.aisdk.provider.location).toBe("google-vertex-location")
           expect(result.provider.endpoint).toEqual({
@@ -81,21 +85,31 @@ describe("GoogleVertexPlugin", () => {
           vertexOptions.length = 0
           const plugin = yield* PluginV2.Service
           yield* plugin.add(GoogleVertexPlugin)
-          const updated = yield* plugin.trigger("provider.update", {
-            provider: provider("google-vertex", {
-              endpoint: {
-                type: "aisdk",
-                package: "@ai-sdk/openai-compatible",
-                url: "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}",
-              },
-            }),
-            cancel: false,
-          })
-          yield* plugin.trigger("aisdk.sdk", {
-            model: model("google-vertex", "gemini", { endpoint: { type: "aisdk", package: "@ai-sdk/google-vertex" } }),
-            package: "@ai-sdk/google-vertex",
-            options: {},
-          })
+          const updated = yield* plugin.trigger(
+            "provider.update",
+            {},
+            {
+              provider: provider("google-vertex", {
+                endpoint: {
+                  type: "aisdk",
+                  package: "@ai-sdk/openai-compatible",
+                  url: "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}",
+                },
+              }),
+              cancel: false,
+            },
+          )
+          yield* plugin.trigger(
+            "aisdk.sdk",
+            {
+              model: model("google-vertex", "gemini", {
+                endpoint: { type: "aisdk", package: "@ai-sdk/google-vertex" },
+              }),
+              package: "@ai-sdk/google-vertex",
+              options: { name: "google-vertex" },
+            },
+            {},
+          )
 
           expect(updated.provider.options.aisdk.provider.project).toBe("vertex-project")
           expect(updated.provider.endpoint).toEqual({
@@ -123,21 +137,25 @@ describe("GoogleVertexPlugin", () => {
         Effect.gen(function* () {
           const plugin = yield* PluginV2.Service
           yield* plugin.add(GoogleVertexPlugin)
-          const result = yield* plugin.trigger("provider.update", {
-            provider: provider("google-vertex", {
-              endpoint: {
-                type: "aisdk",
-                package: "@ai-sdk/openai-compatible",
-                url: "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}",
-              },
-              options: {
-                headers: {},
-                body: {},
-                aisdk: { provider: { project: "config-project", location: "global" }, request: {} },
-              },
-            }),
-            cancel: false,
-          })
+          const result = yield* plugin.trigger(
+            "provider.update",
+            {},
+            {
+              provider: provider("google-vertex", {
+                endpoint: {
+                  type: "aisdk",
+                  package: "@ai-sdk/openai-compatible",
+                  url: "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}",
+                },
+                options: {
+                  headers: {},
+                  body: {},
+                  aisdk: { provider: { project: "config-project", location: "global" }, request: {} },
+                },
+              }),
+              cancel: false,
+            },
+          )
           expect(result.provider.options.aisdk.provider.project).toBe("config-project")
           expect(result.provider.options.aisdk.provider.location).toBe("global")
           expect(result.provider.endpoint).toEqual({
@@ -163,12 +181,16 @@ describe("GoogleVertexPlugin", () => {
         Effect.gen(function* () {
           const plugin = yield* PluginV2.Service
           yield* plugin.add(GoogleVertexPlugin)
-          const result = yield* plugin.trigger("provider.update", {
-            provider: provider("google-vertex", {
-              options: { headers: {}, body: {}, aisdk: { provider: { project: "config-project" }, request: {} } },
-            }),
-            cancel: false,
-          })
+          const result = yield* plugin.trigger(
+            "provider.update",
+            {},
+            {
+              provider: provider("google-vertex", {
+                options: { headers: {}, body: {}, aisdk: { provider: { project: "config-project" }, request: {} } },
+              }),
+              cancel: false,
+            },
+          )
           expect(result.provider.options.aisdk.provider.project).toBe("config-project")
           expect(result.provider.options.aisdk.provider.location).toBe("us-central1")
         }),
@@ -186,11 +208,17 @@ describe("GoogleVertexPlugin", () => {
           vertexOptions.length = 0
           const plugin = yield* PluginV2.Service
           yield* plugin.add(GoogleVertexPlugin)
-          yield* plugin.trigger("aisdk.sdk", {
-            model: model("google-vertex", "gemini", { endpoint: { type: "aisdk", package: "@ai-sdk/google-vertex" } }),
-            package: "@ai-sdk/google-vertex",
-            options: {},
-          })
+          yield* plugin.trigger(
+            "aisdk.sdk",
+            {
+              model: model("google-vertex", "gemini", {
+                endpoint: { type: "aisdk", package: "@ai-sdk/google-vertex" },
+              }),
+              package: "@ai-sdk/google-vertex",
+              options: { name: "google-vertex" },
+            },
+            {},
+          )
           expect(vertexOptions).toHaveLength(1)
           expect(vertexOptions[0].project).toBe("env-project")
           expect(vertexOptions[0].location).toBe("env-location")
@@ -226,11 +254,17 @@ describe("GoogleVertexPlugin", () => {
       yield* Effect.acquireUseRelease(
         Effect.void,
         () =>
-          plugin.trigger("aisdk.sdk", {
-            model: model("google-vertex", "gemini", { endpoint: { type: "aisdk", package: "@ai-sdk/openai-compatible" } }),
-            package: "@ai-sdk/openai-compatible",
-            options: {},
-          }),
+          plugin.trigger(
+            "aisdk.sdk",
+            {
+              model: model("google-vertex", "gemini", {
+                endpoint: { type: "aisdk", package: "@ai-sdk/openai-compatible" },
+              }),
+              package: "@ai-sdk/openai-compatible",
+              options: { name: "google-vertex" },
+            },
+            {},
+          ),
         () =>
           Effect.sync(() => {
             globalThis.fetch = originalFetch
@@ -248,11 +282,15 @@ describe("GoogleVertexPlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(GoogleVertexPlugin)
-      yield* plugin.trigger("aisdk.language", {
-        model: model("google-vertex", " gemini-2.5-pro "),
-        sdk: { languageModel: fakeSelectorSdk(calls).languageModel },
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("google-vertex", " gemini-2.5-pro "),
+          sdk: { languageModel: fakeSelectorSdk(calls).languageModel },
+          options: {},
+        },
+        {},
+      )
       expect(calls).toEqual(["languageModel:gemini-2.5-pro"])
     }),
   )

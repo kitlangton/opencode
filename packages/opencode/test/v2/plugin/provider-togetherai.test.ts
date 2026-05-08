@@ -9,7 +9,11 @@ describe("TogetherAIPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(TogetherAIPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", { model: model("togetherai", "model"), package: "@ai-sdk/togetherai", options: {} })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("togetherai", "model"), package: "@ai-sdk/togetherai", options: { name: "togetherai" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -19,18 +23,22 @@ describe("TogetherAIPlugin", () => {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(TogetherAIPlugin)
 
-      const ignored = yield* plugin.trigger("aisdk.sdk", {
-        model: model("togetherai", "model"),
-        package: "file:///tmp/@ai-sdk/togetherai-provider.js",
-        options: {},
-      })
+      const ignored = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("togetherai", "model"),
+          package: "file:///tmp/@ai-sdk/togetherai-provider.js",
+          options: { name: "togetherai" },
+        },
+        {},
+      )
       expect(ignored.sdk).toBeUndefined()
 
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("togetherai", "model"),
-        package: "@ai-sdk/togetherai",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("togetherai", "model"), package: "@ai-sdk/togetherai", options: { name: "togetherai" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -50,11 +58,15 @@ describe("TogetherAIPlugin", () => {
         }),
       })
 
-      yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-togetherai", "model"),
-        package: "@ai-sdk/togetherai",
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-togetherai", "model"),
+          package: "@ai-sdk/togetherai",
+          options: { name: "custom-togetherai" },
+        },
+        {},
+      )
 
       expect(observed).toEqual(["togetherai.chat"])
     }),
@@ -66,11 +78,15 @@ describe("TogetherAIPlugin", () => {
       const calls: string[] = []
       yield* plugin.add(TogetherAIPlugin)
 
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: model("togetherai", "meta-llama/Llama-3.3-70B-Instruct-Turbo"),
-        sdk: { languageModel: fakeSelectorSdk(calls).languageModel },
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("togetherai", "meta-llama/Llama-3.3-70B-Instruct-Turbo"),
+          sdk: { languageModel: fakeSelectorSdk(calls).languageModel },
+          options: {},
+        },
+        {},
+      )
 
       expect(result.language).toBeUndefined()
       expect(calls).toEqual([])

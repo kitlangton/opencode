@@ -11,7 +11,8 @@ export const CloudflareAIGatewayPlugin = PluginV2.define({
         if (evt.package !== "ai-gateway-provider") return
         if (evt.options.baseURL) return
 
-        const config = requireGatewayConfig(evt.options)
+        const config = gatewayConfig(evt.options)
+        if (!config) return
         const metadata = gatewayMetadata(evt.options)
         const { createAiGateway } = yield* Effect.promise(() => import("ai-gateway-provider")).pipe(Effect.orDie)
         const { createUnified } = yield* Effect.promise(() => import("ai-gateway-provider/providers/unified")).pipe(
@@ -42,19 +43,14 @@ type GatewayConfig = {
 
 const decodeJson = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)
 
-function requireGatewayConfig(options: Record<string, unknown>): GatewayConfig {
+function gatewayConfig(options: Record<string, unknown>): GatewayConfig | undefined {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? stringOption(options, "accountId")
   // AuthPlugin copies CLI prompt metadata into options. The prompt stores the
   // gateway as gatewayId, while older config examples may use gateway.
-  const gatewayId = process.env.CLOUDFLARE_GATEWAY_ID ?? stringOption(options, "gatewayId") ?? stringOption(options, "gateway")
+  const gatewayId =
+    process.env.CLOUDFLARE_GATEWAY_ID ?? stringOption(options, "gatewayId") ?? stringOption(options, "gateway")
   const apiKey = process.env.CLOUDFLARE_API_TOKEN ?? process.env.CF_AIG_TOKEN ?? stringOption(options, "apiKey")
-
-  const missing = [
-    !accountId ? "CLOUDFLARE_ACCOUNT_ID" : undefined,
-    !gatewayId ? "CLOUDFLARE_GATEWAY_ID" : undefined,
-  ].filter((item): item is string => Boolean(item))
-  if (!accountId || !gatewayId) throw new Error(missingCloudflareConfigMessage(missing))
-  if (!apiKey) throw new Error(missingCloudflareTokenMessage())
+  if (!accountId || !gatewayId || !apiKey) return undefined
 
   return { accountId, gatewayId, apiKey }
 }
@@ -82,12 +78,4 @@ function gatewayOptions(options: Record<string, unknown>, metadata: unknown) {
 
 function stringOption(options: Record<string, unknown>, key: string) {
   return typeof options[key] === "string" ? options[key] : undefined
-}
-
-function missingCloudflareConfigMessage(missing: string[]) {
-  return `${missing.join(" and ")} missing. Set with: ${missing.map((item) => `export ${item}=<value>`).join(" && ")}`
-}
-
-function missingCloudflareTokenMessage() {
-  return "CLOUDFLARE_API_TOKEN (or CF_AIG_TOKEN) is required for Cloudflare AI Gateway. Set it via environment variable or run `opencode auth cloudflare-ai-gateway`."
 }

@@ -15,7 +15,11 @@ describe("GroqPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GroqPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", { model: model("groq", "llama"), package: "@ai-sdk/groq", options: {} })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("groq", "llama"), package: "@ai-sdk/groq", options: { name: "groq" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -24,11 +28,11 @@ describe("GroqPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GroqPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("groq", "llama"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("groq", "llama"), package: "@ai-sdk/openai-compatible", options: { name: "groq" } },
+        {},
+      )
       expect(result.sdk).toBeUndefined()
     }),
   )
@@ -37,11 +41,11 @@ describe("GroqPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GroqPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("groq", "llama"),
-        package: "@ai-sdk/groq/compat",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("groq", "llama"), package: "@ai-sdk/groq/compat", options: { name: "groq" } },
+        {},
+      )
       expect(result.sdk).toBeUndefined()
     }),
   )
@@ -50,14 +54,18 @@ describe("GroqPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GroqPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-groq", "llama"),
-        package: "@ai-sdk/groq",
-        options: { apiKey: "test" },
-      })
-      const expected = createGroq(
-        { name: "custom-groq", apiKey: "test" } as Parameters<typeof createGroq>[0] & { name: string },
-      ).languageModel("llama")
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-groq", "llama"),
+          package: "@ai-sdk/groq",
+          options: { name: "custom-groq", apiKey: "test" },
+        },
+        {},
+      )
+      const expected = createGroq({ name: "custom-groq", apiKey: "test" } as Parameters<typeof createGroq>[0] & {
+        name: string
+      }).languageModel("llama")
       const actual = result.sdk?.languageModel("llama")
       expect(actual?.provider).toBe(expected.provider)
       expect(actual?.modelId).toBe(expected.modelId)

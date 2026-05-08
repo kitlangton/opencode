@@ -47,11 +47,15 @@ describe("DynamicProviderPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(dynamicPlugin())
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom", "test-model"),
-        package: fixtureProvider,
-        options: { marker: "dynamic" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom", "test-model"),
+          package: fixtureProvider,
+          options: { name: "custom", marker: "dynamic" },
+        },
+        {},
+      )
       expect(result.sdk.options).toEqual({ marker: "dynamic", name: "custom" })
       expect(result.sdk.languageModel("x")).toEqual({ modelID: "x", options: { marker: "dynamic", name: "custom" } })
     }),
@@ -62,12 +66,15 @@ describe("DynamicProviderPlugin", () => {
       const plugin = yield* PluginV2.Service
       const sdk = { marker: "existing" }
       yield* plugin.add(dynamicPlugin())
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom", "test-model"),
-        package: fixtureProvider,
-        options: { marker: "dynamic" },
-        sdk,
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom", "test-model"),
+          package: fixtureProvider,
+          options: { name: "custom", marker: "dynamic" },
+        },
+        { sdk },
+      )
       expect(result.sdk).toBe(sdk)
     }),
   )
@@ -76,11 +83,15 @@ describe("DynamicProviderPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(dynamicPlugin())
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-provider", "test-model"),
-        package: fixtureProvider,
-        options: { marker: "dynamic" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-provider", "test-model"),
+          package: fixtureProvider,
+          options: { name: "custom-provider", marker: "dynamic" },
+        },
+        {},
+      )
       expect(result.sdk.options).toEqual({ marker: "dynamic", name: "custom-provider" })
     }),
   )
@@ -89,11 +100,15 @@ describe("DynamicProviderPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(dynamicPlugin(npmEntrypointLayer(Option.some(fixtureProviderPath))))
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("npm-provider", "test-model"),
-        package: "fixture-provider",
-        options: { marker: "npm" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("npm-provider", "test-model"),
+          package: "fixture-provider",
+          options: { name: "npm-provider", marker: "npm" },
+        },
+        {},
+      )
       expect(result.sdk.languageModel("x")).toEqual({ modelID: "x", options: { marker: "npm", name: "npm-provider" } })
     }),
   )
@@ -117,7 +132,9 @@ describe("DynamicProviderPlugin", () => {
       const aisdk = yield* AISDK.Service
       yield* plugin.add(dynamicPlugin())
       const exit = yield* aisdk
-        .language(model("bad-import", "alias", { endpoint: { type: "aisdk", package: "file:///missing/provider-factory.js" } }))
+        .language(
+          model("bad-import", "alias", { endpoint: { type: "aisdk", package: "file:///missing/provider-factory.js" } }),
+        )
         .pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
       if (exit._tag === "Failure") expect(Cause.prettyErrors(exit.cause).join("\n")).toContain("AISDK.InitError")

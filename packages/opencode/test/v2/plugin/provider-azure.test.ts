@@ -15,7 +15,7 @@ describe("AzurePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(AzurePlugin)
-        const result = yield* plugin.trigger("provider.update", { provider: provider("azure"), cancel: false })
+        const result = yield* plugin.trigger("provider.update", {}, { provider: provider("azure"), cancel: false })
         expect(result.provider.options.aisdk.provider.resourceName).toBe("from-env")
       }),
     ),
@@ -26,13 +26,17 @@ describe("AzurePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(AzurePlugin)
-        const azure = yield* plugin.trigger("provider.update", {
-          provider: provider("azure", {
-            options: { headers: {}, body: {}, aisdk: { provider: { resourceName: "from-config" }, request: {} } },
-          }),
-          cancel: false,
-        })
-        const other = yield* plugin.trigger("provider.update", { provider: provider("openai"), cancel: false })
+        const azure = yield* plugin.trigger(
+          "provider.update",
+          {},
+          {
+            provider: provider("azure", {
+              options: { headers: {}, body: {}, aisdk: { provider: { resourceName: "from-config" }, request: {} } },
+            }),
+            cancel: false,
+          },
+        )
+        const other = yield* plugin.trigger("provider.update", {}, { provider: provider("openai"), cancel: false })
         expect(azure.provider.options.aisdk.provider.resourceName).toBe("from-config")
         expect(other.provider.options.aisdk.provider.resourceName).toBeUndefined()
       }),
@@ -50,12 +54,19 @@ describe("AzurePlugin", () => {
           const auth = yield* AuthV2.Service
           yield* auth.create({
             serviceID: AuthV2.ServiceID.make("azure"),
-            credential: new AuthV2.ApiKeyCredential({ type: "api", key: "key", metadata: { resourceName: "from-auth" } }),
+            credential: new AuthV2.ApiKeyCredential({
+              type: "api",
+              key: "key",
+              metadata: { resourceName: "from-auth" },
+            }),
             active: true,
           })
-          yield* plugin.add({ ...AuthPlugin, effect: AuthPlugin.effect.pipe(Effect.provideService(AuthV2.Service, auth)) })
+          yield* plugin.add({
+            ...AuthPlugin,
+            effect: AuthPlugin.effect.pipe(Effect.provideService(AuthV2.Service, auth)),
+          })
           yield* plugin.add(AzurePlugin)
-          const result = yield* plugin.trigger("provider.update", { provider: provider("azure"), cancel: false })
+          const result = yield* plugin.trigger("provider.update", {}, { provider: provider("azure"), cancel: false })
           expect(result.provider.options.aisdk.provider.resourceName).toBe("from-auth")
         }),
     ),
@@ -66,12 +77,16 @@ describe("AzurePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(AzurePlugin)
-        const result = yield* plugin.trigger("provider.update", {
-          provider: provider("azure", {
-            options: { headers: {}, body: {}, aisdk: { provider: { resourceName: "" }, request: {} } },
-          }),
-          cancel: false,
-        })
+        const result = yield* plugin.trigger(
+          "provider.update",
+          {},
+          {
+            provider: provider("azure", {
+              options: { headers: {}, body: {}, aisdk: { provider: { resourceName: "" }, request: {} } },
+            }),
+            cancel: false,
+          },
+        )
         expect(result.provider.options.aisdk.provider.resourceName).toBe("from-env")
       }),
     ),
@@ -82,12 +97,16 @@ describe("AzurePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(AzurePlugin)
-        const result = yield* plugin.trigger("provider.update", {
-          provider: provider("azure", {
-            options: { headers: {}, body: {}, aisdk: { provider: { resourceName: "   " }, request: {} } },
-          }),
-          cancel: false,
-        })
+        const result = yield* plugin.trigger(
+          "provider.update",
+          {},
+          {
+            provider: provider("azure", {
+              options: { headers: {}, body: {}, aisdk: { provider: { resourceName: "   " }, request: {} } },
+            }),
+            cancel: false,
+          },
+        )
         expect(result.provider.options.aisdk.provider.resourceName).toBe("from-env")
       }),
     ),
@@ -98,11 +117,15 @@ describe("AzurePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(AzurePlugin)
-        const result = yield* plugin.trigger("aisdk.sdk", {
-          model: model("azure", "deployment"),
-          package: "@ai-sdk/azure",
-          options: { baseURL: "https://proxy.example.com/openai" },
-        })
+        const result = yield* plugin.trigger(
+          "aisdk.sdk",
+          {
+            model: model("azure", "deployment"),
+            package: "@ai-sdk/azure",
+            options: { name: "azure", baseURL: "https://proxy.example.com/openai" },
+          },
+          {},
+        )
         expect(result.sdk).toBeDefined()
       }),
     ),
@@ -114,7 +137,11 @@ describe("AzurePlugin", () => {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(AzurePlugin)
         const exit = yield* plugin
-          .trigger("aisdk.sdk", { model: model("azure", "deployment"), package: "@ai-sdk/azure", options: {} })
+          .trigger(
+            "aisdk.sdk",
+            { model: model("azure", "deployment"), package: "@ai-sdk/azure", options: { name: "azure" } },
+            {},
+          )
           .pipe(Effect.exit)
         expect(exit._tag).toBe("Failure")
       }),
@@ -126,11 +153,11 @@ describe("AzurePlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(AzurePlugin)
-      yield* plugin.trigger("aisdk.language", {
-        model: model("azure", "deployment"),
-        sdk: fakeSelectorSdk(calls),
-        options: { useCompletionUrls: true },
-      })
+      yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("azure", "deployment"), sdk: fakeSelectorSdk(calls), options: { useCompletionUrls: true } },
+        {},
+      )
       expect(calls).toEqual(["chat:deployment"])
     }),
   )
@@ -140,11 +167,11 @@ describe("AzurePlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(AzurePlugin)
-      yield* plugin.trigger("aisdk.language", {
-        model: model("azure", "deployment"),
-        sdk: fakeSelectorSdk(calls),
-        options: { useCompletionUrls: true },
-      })
+      yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("azure", "deployment"), sdk: fakeSelectorSdk(calls), options: { useCompletionUrls: true } },
+        {},
+      )
       expect(calls).toEqual(["chat:deployment"])
     }),
   )
@@ -154,11 +181,17 @@ describe("AzurePlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(AzurePlugin)
-      yield* plugin.trigger("aisdk.language", {
-        model: model("azure", "deployment", { options: { headers: {}, body: {}, aisdk: { provider: {}, request: { useCompletionUrls: true } } } }),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("azure", "deployment", {
+            options: { headers: {}, body: {}, aisdk: { provider: {}, request: { useCompletionUrls: true } } },
+          }),
+          sdk: fakeSelectorSdk(calls),
+          options: {},
+        },
+        {},
+      )
       expect(calls).toEqual(["responses:deployment"])
     }),
   )
@@ -168,16 +201,16 @@ describe("AzurePlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(AzurePlugin)
-      yield* plugin.trigger("aisdk.language", {
-        model: model("azure", "deployment"),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
-      const ignored = yield* plugin.trigger("aisdk.language", {
-        model: model("openai", "deployment"),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("azure", "deployment"), sdk: fakeSelectorSdk(calls), options: {} },
+        {},
+      )
+      const ignored = yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("openai", "deployment"), sdk: fakeSelectorSdk(calls), options: {} },
+        {},
+      )
       expect(calls).toEqual(["responses:deployment"])
       expect(ignored.language).toBeUndefined()
     }),
@@ -192,16 +225,20 @@ describe("AzurePlugin", () => {
         return { modelId: id, provider: method, specificationVersion: "v3" }
       }
       yield* plugin.add(AzurePlugin)
-      yield* plugin.trigger("aisdk.language", {
-        model: model("azure", "messages-deployment"),
-        sdk: { messages: make("messages"), chat: make("chat"), languageModel: make("languageModel") },
-        options: {},
-      })
-      yield* plugin.trigger("aisdk.language", {
-        model: model("azure", "language-deployment"),
-        sdk: { languageModel: make("languageModel") },
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("azure", "messages-deployment"),
+          sdk: { messages: make("messages"), chat: make("chat"), languageModel: make("languageModel") },
+          options: {},
+        },
+        {},
+      )
+      yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("azure", "language-deployment"), sdk: { languageModel: make("languageModel") }, options: {} },
+        {},
+      )
       expect(calls).toEqual(["messages:messages-deployment", "languageModel:language-deployment"])
     }),
   )

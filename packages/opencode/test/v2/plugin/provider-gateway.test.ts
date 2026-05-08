@@ -32,7 +32,11 @@ describe("GatewayPlugin", () => {
       gatewayCalls.length = 0
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GatewayPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", { model: model("gateway", "model"), package: "@ai-sdk/gateway", options: {} })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("gateway", "model"), package: "@ai-sdk/gateway", options: { name: "gateway" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
       expect(gatewayCalls).toHaveLength(1)
     }),
@@ -44,11 +48,15 @@ describe("GatewayPlugin", () => {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GatewayPlugin)
 
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("vercel", "anthropic/claude-sonnet-4"),
-        package: "@ai-sdk/gateway",
-        options: { apiKey: "test-key" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("vercel", "anthropic/claude-sonnet-4"),
+          package: "@ai-sdk/gateway",
+          options: { name: "vercel", apiKey: "test-key" },
+        },
+        {},
+      )
 
       expect(gatewayCalls).toEqual([{ name: "vercel", apiKey: "test-key" }])
       expect(result.sdk.languageModel("anthropic/claude-sonnet-4").provider).toBe("vercel")
@@ -66,18 +74,18 @@ describe("GatewayPlugin", () => {
         const packageName = realModel.provider?.npm ?? vercel.npm ?? ""
         expect(packageName).toBe("@ai-sdk/gateway")
 
-        const ignored = yield* plugin.trigger("aisdk.sdk", {
-          model: model("vercel", modelID),
-          package: "@ai-sdk/vercel",
-          options: {},
-        })
+        const ignored = yield* plugin.trigger(
+          "aisdk.sdk",
+          { model: model("vercel", modelID), package: "@ai-sdk/vercel", options: { name: "vercel" } },
+          {},
+        )
         expect(ignored.sdk).toBeUndefined()
 
-        const result = yield* plugin.trigger("aisdk.sdk", {
-          model: model("vercel", modelID),
-          package: packageName,
-          options: {},
-        })
+        const result = yield* plugin.trigger(
+          "aisdk.sdk",
+          { model: model("vercel", modelID), package: packageName, options: { name: "vercel" } },
+          {},
+        )
         expect(result.sdk).toBeDefined()
       }
 

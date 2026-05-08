@@ -41,7 +41,13 @@ const cases = [
   { name: "GatewayPlugin", plugin: GatewayPlugin, providerID: "vercel", package: "@ai-sdk/gateway" },
   { name: "GithubCopilotPlugin", plugin: GithubCopilotPlugin, providerID: "custom", package: "@ai-sdk/github-copilot" },
   { name: "GooglePlugin", plugin: GooglePlugin, providerID: "custom", package: "@ai-sdk/google" },
-  { name: "GoogleVertexPlugin", plugin: GoogleVertexPlugin, providerID: "custom", package: "@ai-sdk/google-vertex", options: { project: "project" } },
+  {
+    name: "GoogleVertexPlugin",
+    plugin: GoogleVertexPlugin,
+    providerID: "custom",
+    package: "@ai-sdk/google-vertex",
+    options: { project: "project" },
+  },
   {
     name: "GoogleVertexAnthropicPlugin",
     plugin: GoogleVertexAnthropicPlugin,
@@ -73,18 +79,18 @@ describe("provider SDK package matching", () => {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(item.plugin)
 
-        const ignored = yield* plugin.trigger("aisdk.sdk", {
-          model: model(item.providerID, "model"),
-          package: "unmatched-package",
-          options: item.options ?? {},
-        })
+        const ignored = yield* plugin.trigger(
+          "aisdk.sdk",
+          { model: model(item.providerID, "model"), package: "unmatched-package", options: item.options ?? {} },
+          {},
+        )
         expect(ignored.sdk).toBeUndefined()
 
-        const result = yield* plugin.trigger("aisdk.sdk", {
-          model: model(item.providerID, "model"),
-          package: item.package,
-          options: item.options ?? {},
-        })
+        const result = yield* plugin.trigger(
+          "aisdk.sdk",
+          { model: model(item.providerID, "model"), package: item.package, options: item.options ?? {} },
+          {},
+        )
         expect(result.sdk).toBeDefined()
       }),
     )

@@ -10,7 +10,11 @@ describe("PerplexityPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(PerplexityPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", { model: model("perplexity", "sonar"), package: "@ai-sdk/perplexity", options: {} })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("perplexity", "sonar"), package: "@ai-sdk/perplexity", options: { name: "perplexity" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -19,11 +23,15 @@ describe("PerplexityPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(PerplexityPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("perplexity", "sonar"),
-        package: "@ai-sdk/perplexity-compatible",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("perplexity", "sonar"),
+          package: "@ai-sdk/perplexity-compatible",
+          options: { name: "perplexity" },
+        },
+        {},
+      )
       expect(result.sdk).toBeUndefined()
     }),
   )
@@ -42,11 +50,11 @@ describe("PerplexityPlugin", () => {
             }),
         }),
       })
-      yield* plugin.trigger("aisdk.sdk", {
-        model: model("perplexity", "sonar"),
-        package: "@ai-sdk/perplexity",
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("perplexity", "sonar"), package: "@ai-sdk/perplexity", options: { name: "perplexity" } },
+        {},
+      )
       expect(providers).toEqual(["perplexity"])
     }),
   )
@@ -65,11 +73,15 @@ describe("PerplexityPlugin", () => {
             }),
         }),
       })
-      yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-perplexity", "sonar"),
-        package: "@ai-sdk/perplexity",
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-perplexity", "sonar"),
+          package: "@ai-sdk/perplexity",
+          options: { name: "custom-perplexity" },
+        },
+        {},
+      )
       expect(providers).toEqual(["perplexity"])
     }),
   )
@@ -79,11 +91,15 @@ describe("PerplexityPlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(PerplexityPlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: model("perplexity", "alias", { apiID: ModelV2.ID.make("sonar") }),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("perplexity", "alias", { apiID: ModelV2.ID.make("sonar") }),
+          sdk: fakeSelectorSdk(calls),
+          options: {},
+        },
+        {},
+      )
       expect(calls).toEqual([])
       expect(result.language).toBeUndefined()
     }),

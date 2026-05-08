@@ -26,18 +26,18 @@ describe("CoherePlugin", () => {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(CoherePlugin)
 
-      const ignored = yield* plugin.trigger("aisdk.sdk", {
-        model: model("cohere", "command"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const ignored = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("cohere", "command"), package: "@ai-sdk/openai-compatible", options: { name: "cohere" } },
+        {},
+      )
       expect(ignored.sdk).toBeUndefined()
 
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("cohere", "command"),
-        package: "@ai-sdk/cohere",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("cohere", "command"), package: "@ai-sdk/cohere", options: { name: "cohere" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -46,11 +46,15 @@ describe("CoherePlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(CoherePlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-cohere", "command-r-plus"),
-        package: "@ai-sdk/cohere",
-        options: { apiKey: "test", baseURL: "https://cohere.example" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-cohere", "command-r-plus"),
+          package: "@ai-sdk/cohere",
+          options: { name: "custom-cohere", apiKey: "test", baseURL: "https://cohere.example" },
+        },
+        {},
+      )
 
       expect(cohereOptions.at(-1)).toEqual({
         name: "custom-cohere",
@@ -67,11 +71,11 @@ describe("CoherePlugin", () => {
       const calls: string[] = []
       const sdk = fakeSelectorSdk(calls)
       yield* plugin.add(CoherePlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: model("cohere", "alias", { apiID: ModelV2.ID.make("command-r-plus") }),
-        sdk,
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("cohere", "alias", { apiID: ModelV2.ID.make("command-r-plus") }), sdk, options: {} },
+        {},
+      )
 
       expect(result.language).toBeUndefined()
       expect(calls).toEqual([])

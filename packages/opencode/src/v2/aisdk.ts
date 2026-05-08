@@ -57,7 +57,7 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 }
 
 function prepareOptions(model: ModelV2.Info, pkg: string) {
-  const options = { ...model.options.aisdk.provider }
+  const options: Record<string, any> = { name: model.providerID, ...model.options.aisdk.provider }
   if (model.endpoint.type === "aisdk" && model.endpoint.url) options.baseURL = model.endpoint.url
 
   const customFetch = options.fetch
@@ -139,8 +139,9 @@ export const layer = Layer.effect(
         })
         const sdk =
           sdks.get(sdkKey) ??
-          (yield* plugin.trigger("aisdk.sdk", { model, package: model.endpoint.package, options }).pipe(initError(model.providerID)))
-            .sdk
+          (yield* plugin
+            .trigger("aisdk.sdk", { model, package: model.endpoint.package, options }, {})
+            .pipe(initError(model.providerID))).sdk
         if (!sdk)
           return yield* new InitError({
             providerID: model.providerID,
@@ -148,11 +149,15 @@ export const layer = Layer.effect(
           })
         sdks.set(sdkKey, sdk)
         const result = yield* plugin
-          .trigger("aisdk.language", {
-            model,
-            sdk,
-            options,
-          })
+          .trigger(
+            "aisdk.language",
+            {
+              model,
+              sdk,
+              options,
+            },
+            {},
+          )
           .pipe(initError(model.providerID))
         const language = yield* Effect.sync(() => result.language ?? sdk.languageModel(model.apiID)).pipe(
           initError(model.providerID),

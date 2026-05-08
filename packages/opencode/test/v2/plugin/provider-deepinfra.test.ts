@@ -34,7 +34,11 @@ describe("DeepInfraPlugin", () => {
       resetDeepInfraMock()
       const plugin = yield* PluginV2.Service
       yield* plugin.add(DeepInfraPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", { model: model("deepinfra", "model"), package: "@ai-sdk/deepinfra", options: {} })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("deepinfra", "model"), package: "@ai-sdk/deepinfra", options: { name: "deepinfra" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -44,11 +48,15 @@ describe("DeepInfraPlugin", () => {
       resetDeepInfraMock()
       const plugin = yield* PluginV2.Service
       yield* plugin.add(DeepInfraPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-deepinfra", "model"),
-        package: "@ai-sdk/deepinfra",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-deepinfra", "model"),
+          package: "@ai-sdk/deepinfra",
+          options: { name: "custom-deepinfra", apiKey: "test" },
+        },
+        {},
+      )
       expect(result.sdk.languageModel("model").provider).toBe("custom-deepinfra.chat")
       expect(deepinfraOptions).toEqual([{ name: "custom-deepinfra", apiKey: "test" }])
     }),
@@ -59,11 +67,15 @@ describe("DeepInfraPlugin", () => {
       resetDeepInfraMock()
       const plugin = yield* PluginV2.Service
       yield* plugin.add(DeepInfraPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("deepinfra", "model"),
-        package: "@ai-sdk/deepinfra",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("deepinfra", "model"),
+          package: "@ai-sdk/deepinfra",
+          options: { name: "deepinfra", apiKey: "test" },
+        },
+        {},
+      )
       expect(result.sdk.languageModel("model").provider).toBe("deepinfra.chat")
       expect(deepinfraOptions).toEqual([{ name: "deepinfra", apiKey: "test" }])
     }),
@@ -74,22 +86,26 @@ describe("DeepInfraPlugin", () => {
       resetDeepInfraMock()
       const plugin = yield* PluginV2.Service
       yield* plugin.add(DeepInfraPlugin)
-      const packages = ["unmatched-package", "@ai-sdk/deepinfra-compatible", "file:///tmp/@ai-sdk/deepinfra-provider.js"]
+      const packages = [
+        "unmatched-package",
+        "@ai-sdk/deepinfra-compatible",
+        "file:///tmp/@ai-sdk/deepinfra-provider.js",
+      ]
       yield* Effect.forEach(packages, (item) =>
         Effect.gen(function* () {
-          const ignored = yield* plugin.trigger("aisdk.sdk", {
-            model: model("deepinfra", "model"),
-            package: item,
-            options: {},
-          })
+          const ignored = yield* plugin.trigger(
+            "aisdk.sdk",
+            { model: model("deepinfra", "model"), package: item, options: { name: "deepinfra" } },
+            {},
+          )
           expect(ignored.sdk).toBeUndefined()
         }),
       )
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("deepinfra", "model"),
-        package: "@ai-sdk/deepinfra",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("deepinfra", "model"), package: "@ai-sdk/deepinfra", options: { name: "deepinfra" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
       expect(deepinfraOptions).toEqual([{ name: "deepinfra" }])
     }),

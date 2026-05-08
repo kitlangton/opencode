@@ -9,12 +9,20 @@ describe("OpenAICompatiblePlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenAICompatiblePlugin)
-      const defaulted = yield* plugin.trigger("aisdk.sdk", { model: model("custom", "model"), package: "@ai-sdk/openai-compatible", options: {} })
-      const disabled = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom", "model"),
-        package: "@ai-sdk/openai-compatible",
-        options: { includeUsage: false },
-      })
+      const defaulted = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("custom", "model"), package: "@ai-sdk/openai-compatible", options: { name: "custom" } },
+        {},
+      )
+      const disabled = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom", "model"),
+          package: "@ai-sdk/openai-compatible",
+          options: { name: "custom", includeUsage: false },
+        },
+        {},
+      )
       expect(defaulted.options.includeUsage).toBe(true)
       expect(disabled.options.includeUsage).toBe(false)
     }),
@@ -24,11 +32,15 @@ describe("OpenAICompatiblePlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenAICompatiblePlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom", "model"),
-        package: "file:///tmp/@ai-sdk/openai-compatible-provider.js",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom", "model"),
+          package: "file:///tmp/@ai-sdk/openai-compatible-provider.js",
+          options: { name: "custom" },
+        },
+        {},
+      )
       expect(result.options.includeUsage).toBe(true)
     }),
   )
@@ -47,11 +59,15 @@ describe("OpenAICompatiblePlugin", () => {
             }),
         }),
       })
-      yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-provider", "model"),
-        package: "@ai-sdk/openai-compatible",
-        options: { baseURL: "https://example.com/v1" },
-      })
+      yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-provider", "model"),
+          package: "@ai-sdk/openai-compatible",
+          options: { name: "custom-provider", baseURL: "https://example.com/v1" },
+        },
+        {},
+      )
       expect(observed).toEqual(["custom-provider.chat"])
     }),
   )
@@ -70,11 +86,15 @@ describe("OpenAICompatiblePlugin", () => {
         }),
       })
       yield* plugin.add(OpenAICompatiblePlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("cloudflare-workers-ai", "model"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("cloudflare-workers-ai", "model"),
+          package: "@ai-sdk/openai-compatible",
+          options: { name: "cloudflare-workers-ai" },
+        },
+        {},
+      )
       expect(result.sdk).toBe(sentinel)
     }),
   )

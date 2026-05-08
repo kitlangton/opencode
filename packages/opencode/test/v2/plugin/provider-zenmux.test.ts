@@ -7,14 +7,19 @@ import { expectPluginRegistered, it, provider } from "./provider-helper"
 
 describe("ZenmuxPlugin", () => {
   it.effect("is registered so legacy referer headers can be applied", () =>
-    Effect.sync(() => expectPluginRegistered(ProviderPlugins.map((item) => item.id), "zenmux")),
+    Effect.sync(() =>
+      expectPluginRegistered(
+        ProviderPlugins.map((item) => item.id),
+        "zenmux",
+      ),
+    ),
   )
 
   it.effect("applies the exact legacy Zenmux headers", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(ZenmuxPlugin)
-      const result = yield* plugin.trigger("provider.update", { provider: provider("zenmux"), cancel: false })
+      const result = yield* plugin.trigger("provider.update", {}, { provider: provider("zenmux"), cancel: false })
       expect(result.provider.options.headers).toEqual({ "HTTP-Referer": "https://opencode.ai/", "X-Title": "opencode" })
       expect(Object.keys(result.provider.options.headers).sort()).toEqual(["HTTP-Referer", "X-Title"])
       expect(result.cancel).toBe(false)
@@ -25,12 +30,16 @@ describe("ZenmuxPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(ZenmuxPlugin)
-      const result = yield* plugin.trigger("provider.update", {
-        provider: provider("zenmux", {
-          options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
-        }),
-        cancel: false,
-      })
+      const result = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("zenmux", {
+            options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
+          }),
+          cancel: false,
+        },
+      )
 
       expect(result.provider.options.headers).toEqual({
         Existing: "value",
@@ -44,16 +53,20 @@ describe("ZenmuxPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(ZenmuxPlugin)
-      const result = yield* plugin.trigger("provider.update", {
-        provider: provider("zenmux", {
-          options: {
-            headers: { "HTTP-Referer": "https://example.com/", "X-Title": "custom-title" },
-            body: {},
-            aisdk: { provider: {}, request: {} },
-          },
-        }),
-        cancel: false,
-      })
+      const result = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("zenmux", {
+            options: {
+              headers: { "HTTP-Referer": "https://example.com/", "X-Title": "custom-title" },
+              body: {},
+              aisdk: { provider: {}, request: {} },
+            },
+          }),
+          cancel: false,
+        },
+      )
 
       expect(result.provider.options.headers).toEqual({
         "HTTP-Referer": "https://example.com/",
@@ -66,16 +79,20 @@ describe("ZenmuxPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(ZenmuxPlugin)
-      const ignored = yield* plugin.trigger("provider.update", {
-        provider: provider("openrouter", {
-          options: {
-            headers: { "HTTP-Referer": "https://example.com/", "X-Title": "custom-title" },
-            body: {},
-            aisdk: { provider: {}, request: {} },
-          },
-        }),
-        cancel: false,
-      })
+      const ignored = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("openrouter", {
+            options: {
+              headers: { "HTTP-Referer": "https://example.com/", "X-Title": "custom-title" },
+              body: {},
+              aisdk: { provider: {}, request: {} },
+            },
+          }),
+          cancel: false,
+        },
+      )
 
       expect(ignored.provider.options.headers).toEqual({
         "HTTP-Referer": "https://example.com/",

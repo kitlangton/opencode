@@ -22,7 +22,7 @@ export const CloudflareWorkersAIPlugin = PluginV2.define({
         if (evt.model.providerID !== providerID) return
         if (evt.package !== "@ai-sdk/openai-compatible") return
 
-        requireWorkersEndpoint(evt.model.endpoint)
+        if (!hasWorkersEndpoint(evt.model.endpoint)) return
         const mod = yield* Effect.promise(() => import("@ai-sdk/openai-compatible"))
         evt.sdk = mod.createOpenAICompatible(sdkOptions(evt.options) as any)
       }),
@@ -42,9 +42,8 @@ function workersEndpoint(accountId: string) {
   return `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1`
 }
 
-function requireWorkersEndpoint(endpoint: ProviderV2.Endpoint) {
-  if (endpoint.type === "aisdk" && endpoint.url) return
-  throw new Error("CLOUDFLARE_ACCOUNT_ID is missing. Set it with: export CLOUDFLARE_ACCOUNT_ID=<your-account-id>")
+function hasWorkersEndpoint(endpoint: ProviderV2.Endpoint) {
+  return endpoint.type === "aisdk" && Boolean(endpoint.url)
 }
 
 function sdkOptions(options: Record<string, any>) {

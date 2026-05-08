@@ -15,11 +15,12 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        const updated = yield* plugin.trigger("provider.update", { provider: provider("opencode"), cancel: false })
-        const paid = yield* plugin.trigger("model.update", {
-          model: model("opencode", "paid", { cost: cost(1) }),
-          cancel: false,
-        })
+        const updated = yield* plugin.trigger("provider.update", {}, { provider: provider("opencode"), cancel: false })
+        const paid = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("opencode", "paid", { cost: cost(1) }), cancel: false },
+        )
         expect(updated.provider.options.aisdk.provider.apiKey).toBe("public")
         expect(paid.cancel).toBe(true)
       }),
@@ -31,11 +32,12 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        yield* plugin.trigger("provider.update", { provider: provider("opencode"), cancel: false })
-        const free = yield* plugin.trigger("model.update", {
-          model: model("opencode", "free", { cost: cost(0) }),
-          cancel: false,
-        })
+        yield* plugin.trigger("provider.update", {}, { provider: provider("opencode"), cancel: false })
+        const free = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("opencode", "free", { cost: cost(0) }), cancel: false },
+        )
         expect(free.cancel).toBe(false)
       }),
     ),
@@ -46,11 +48,12 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        yield* plugin.trigger("provider.update", { provider: provider("opencode"), cancel: false })
-        const outputOnly = yield* plugin.trigger("model.update", {
-          model: model("opencode", "output-only", { cost: cost(0, 1) }),
-          cancel: false,
-        })
+        yield* plugin.trigger("provider.update", {}, { provider: provider("opencode"), cancel: false })
+        const outputOnly = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("opencode", "output-only", { cost: cost(0, 1) }), cancel: false },
+        )
         expect(outputOnly.cancel).toBe(false)
       }),
     ),
@@ -61,11 +64,12 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        const updated = yield* plugin.trigger("provider.update", { provider: provider("opencode"), cancel: false })
-        const paid = yield* plugin.trigger("model.update", {
-          model: model("opencode", "paid", { cost: cost(1) }),
-          cancel: false,
-        })
+        const updated = yield* plugin.trigger("provider.update", {}, { provider: provider("opencode"), cancel: false })
+        const paid = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("opencode", "paid", { cost: cost(1) }), cancel: false },
+        )
         expect(updated.provider.options.aisdk.provider.apiKey).toBeUndefined()
         expect(paid.cancel).toBe(false)
       }),
@@ -77,14 +81,16 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        const updated = yield* plugin.trigger("provider.update", {
-          provider: provider("opencode", { env: ["CUSTOM_OPENCODE_API_KEY"] }),
-          cancel: false,
-        })
-        const paid = yield* plugin.trigger("model.update", {
-          model: model("opencode", "paid", { cost: cost(1) }),
-          cancel: false,
-        })
+        const updated = yield* plugin.trigger(
+          "provider.update",
+          {},
+          { provider: provider("opencode", { env: ["CUSTOM_OPENCODE_API_KEY"] }), cancel: false },
+        )
+        const paid = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("opencode", "paid", { cost: cost(1) }), cancel: false },
+        )
         expect(updated.provider.options.aisdk.provider.apiKey).toBeUndefined()
         expect(paid.cancel).toBe(false)
       }),
@@ -96,23 +102,28 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        const updated = yield* plugin.trigger("provider.update", {
-          provider: provider("opencode", {
-            options: {
-              headers: {},
-              body: {},
-              aisdk: {
-                provider: { apiKey: "configured" },
-                request: {},
+        const updated = yield* plugin.trigger(
+          "provider.update",
+          {},
+          {
+            provider: provider("opencode", {
+              options: {
+                headers: {},
+                body: {},
+                aisdk: {
+                  provider: { apiKey: "configured" },
+                  request: {},
+                },
               },
-            },
-          }),
-          cancel: false,
-        })
-        const paid = yield* plugin.trigger("model.update", {
-          model: model("opencode", "paid", { cost: cost(1) }),
-          cancel: false,
-        })
+            }),
+            cancel: false,
+          },
+        )
+        const paid = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("opencode", "paid", { cost: cost(1) }), cancel: false },
+        )
         expect(updated.provider.options.aisdk.provider.apiKey).toBe("configured")
         expect(paid.cancel).toBe(false)
       }),
@@ -124,14 +135,16 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        const updated = yield* plugin.trigger("provider.update", {
-          provider: provider("opencode", { enabled: { via: "auth", service: "opencode" } }),
-          cancel: false,
-        })
-        const paid = yield* plugin.trigger("model.update", {
-          model: model("opencode", "paid", { cost: cost(1) }),
-          cancel: false,
-        })
+        const updated = yield* plugin.trigger(
+          "provider.update",
+          {},
+          { provider: provider("opencode", { enabled: { via: "auth", service: "opencode" } }), cancel: false },
+        )
+        const paid = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("opencode", "paid", { cost: cost(1) }), cancel: false },
+        )
         expect(updated.provider.options.aisdk.provider.apiKey).toBeUndefined()
         expect(paid.cancel).toBe(false)
       }),
@@ -143,11 +156,12 @@ describe("OpencodePlugin", () => {
       Effect.gen(function* () {
         const plugin = yield* PluginV2.Service
         yield* plugin.add(OpencodePlugin)
-        const updated = yield* plugin.trigger("provider.update", { provider: provider("openai"), cancel: false })
-        const paid = yield* plugin.trigger("model.update", {
-          model: model("openai", "paid", { cost: cost(1) }),
-          cancel: false,
-        })
+        const updated = yield* plugin.trigger("provider.update", {}, { provider: provider("openai"), cancel: false })
+        const paid = yield* plugin.trigger(
+          "model.update",
+          {},
+          { model: model("openai", "paid", { cost: cost(1) }), cancel: false },
+        )
         expect(updated.provider.options.aisdk.provider.apiKey).toBeUndefined()
         expect(paid.cancel).toBe(false)
       }),

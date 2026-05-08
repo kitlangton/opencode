@@ -10,11 +10,15 @@ describe("OpenAIPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenAIPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-openai", "gpt-5"),
-        package: "@ai-sdk/openai",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-openai", "gpt-5"),
+          package: "@ai-sdk/openai",
+          options: { name: "custom-openai", apiKey: "test" },
+        },
+        {},
+      )
       expect(result.sdk?.responses("gpt-5").provider).toBe("custom-openai.responses")
     }),
   )
@@ -23,11 +27,11 @@ describe("OpenAIPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenAIPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("openai", "gpt-5"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("openai", "gpt-5"), package: "@ai-sdk/openai-compatible", options: { name: "openai" } },
+        {},
+      )
       expect(result.sdk).toBeUndefined()
     }),
   )
@@ -37,11 +41,15 @@ describe("OpenAIPlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(OpenAIPlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: model("openai", "alias", { apiID: ModelV2.ID.make("gpt-5") }),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: model("openai", "alias", { apiID: ModelV2.ID.make("gpt-5") }),
+          sdk: fakeSelectorSdk(calls),
+          options: {},
+        },
+        {},
+      )
       expect(calls).toEqual(["responses:gpt-5"])
       expect(result.language).toBeDefined()
     }),
@@ -52,11 +60,11 @@ describe("OpenAIPlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(OpenAIPlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: model("anthropic", "gpt-5"),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("anthropic", "gpt-5"), sdk: fakeSelectorSdk(calls), options: {} },
+        {},
+      )
       expect(calls).toEqual([])
       expect(result.language).toBeUndefined()
     }),
@@ -66,14 +74,12 @@ describe("OpenAIPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenAIPlugin)
-      const normal = yield* plugin.trigger("model.update", {
-        model: model("openai", "gpt-5"),
-        cancel: false,
-      })
-      const filtered = yield* plugin.trigger("model.update", {
-        model: model("openai", "gpt-5-chat-latest"),
-        cancel: false,
-      })
+      const normal = yield* plugin.trigger("model.update", {}, { model: model("openai", "gpt-5"), cancel: false })
+      const filtered = yield* plugin.trigger(
+        "model.update",
+        {},
+        { model: model("openai", "gpt-5-chat-latest"), cancel: false },
+      )
       expect(normal.cancel).toBe(false)
       expect(filtered.cancel).toBe(true)
     }),
@@ -83,10 +89,11 @@ describe("OpenAIPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(OpenAIPlugin)
-      const result = yield* plugin.trigger("model.update", {
-        model: model("custom-openai", "gpt-5-chat-latest"),
-        cancel: false,
-      })
+      const result = yield* plugin.trigger(
+        "model.update",
+        {},
+        { model: model("custom-openai", "gpt-5-chat-latest"), cancel: false },
+      )
       expect(result.cancel).toBe(false)
     }),
   )

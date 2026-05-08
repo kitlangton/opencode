@@ -14,11 +14,15 @@ describe("GooglePlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GooglePlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-google", "gemini"),
-        package: "@ai-sdk/google",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-google", "gemini"),
+          package: "@ai-sdk/google",
+          options: { name: "custom-google", apiKey: "test" },
+        },
+        {},
+      )
       expect(result.sdk).toBeDefined()
       expect(result.sdk?.languageModel("gemini").provider).toBe("custom-google")
     }),
@@ -28,11 +32,11 @@ describe("GooglePlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(GooglePlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("google", "gemini"),
-        package: "@ai-sdk/google-vertex",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("google", "gemini"), package: "@ai-sdk/google-vertex", options: { name: "google" } },
+        {},
+      )
       expect(result.sdk).toBeUndefined()
     }),
   )

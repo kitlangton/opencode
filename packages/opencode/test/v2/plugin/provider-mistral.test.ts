@@ -10,7 +10,11 @@ describe("MistralPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(MistralPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", { model: model("mistral", "mistral-large"), package: "@ai-sdk/mistral", options: {} })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("mistral", "mistral-large"), package: "@ai-sdk/mistral", options: { name: "mistral" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -19,11 +23,15 @@ describe("MistralPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(MistralPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("mistral", "mistral-large"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("mistral", "mistral-large"),
+          package: "@ai-sdk/openai-compatible",
+          options: { name: "mistral" },
+        },
+        {},
+      )
       expect(result.sdk).toBeUndefined()
     }),
   )
@@ -42,11 +50,11 @@ describe("MistralPlugin", () => {
             }),
         }),
       })
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("mistral", "mistral-large"),
-        package: "@ai-sdk/mistral",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("mistral", "mistral-large"), package: "@ai-sdk/mistral", options: { name: "mistral" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
       expect(providers).toEqual(["mistral.chat"])
     }),
@@ -66,11 +74,15 @@ describe("MistralPlugin", () => {
             }),
         }),
       })
-      yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-mistral", "mistral-large"),
-        package: "@ai-sdk/mistral",
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-mistral", "mistral-large"),
+          package: "@ai-sdk/mistral",
+          options: { name: "custom-mistral" },
+        },
+        {},
+      )
       expect(providers).toEqual(["mistral.chat"])
     }),
   )
@@ -81,11 +93,11 @@ describe("MistralPlugin", () => {
       const calls: string[] = []
       const sdk = fakeSelectorSdk(calls)
       yield* plugin.add(MistralPlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: model("mistral", "alias", { apiID: ModelV2.ID.make("mistral-large") }),
-        sdk,
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("mistral", "alias", { apiID: ModelV2.ID.make("mistral-large") }), sdk, options: {} },
+        {},
+      )
       const language = result.language ?? sdk.languageModel(result.model.apiID)
       expect(calls).toEqual(["languageModel:mistral-large"])
       expect(language).toBeDefined()

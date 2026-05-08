@@ -24,17 +24,13 @@ describe("XAIPlugin", () => {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(XAIPlugin)
 
-      const ignored = yield* plugin.trigger("aisdk.sdk", {
-        model,
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const ignored = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model, package: "@ai-sdk/openai-compatible", options: {} },
+        {},
+      )
 
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model,
-        package: "@ai-sdk/xai",
-        options: {},
-      })
+      const result = yield* plugin.trigger("aisdk.sdk", { model, package: "@ai-sdk/xai", options: {} }, {})
 
       expect(ignored.sdk).toBeUndefined()
       expect(typeof result.sdk?.responses).toBe("function")
@@ -61,11 +57,15 @@ describe("XAIPlugin", () => {
         }),
       )
 
-      yield* plugin.trigger("aisdk.sdk", {
-        model: new ModelV2.Info({ ...model, providerID: ProviderV2.ID.make("custom-xai") }),
-        package: "@ai-sdk/xai",
-        options: {},
-      })
+      yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: new ModelV2.Info({ ...model, providerID: ProviderV2.ID.make("custom-xai") }),
+          package: "@ai-sdk/xai",
+          options: {},
+        },
+        {},
+      )
 
       expect(providers).toEqual(["xai.responses"])
     }),
@@ -77,11 +77,15 @@ describe("XAIPlugin", () => {
       const calls: string[] = []
 
       yield* plugin.add(XAIPlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: new ModelV2.Info({ ...model, id: ModelV2.ID.make("alias"), apiID: ModelV2.ID.make("grok-4") }),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: new ModelV2.Info({ ...model, id: ModelV2.ID.make("alias"), apiID: ModelV2.ID.make("grok-4") }),
+          sdk: fakeSelectorSdk(calls),
+          options: {},
+        },
+        {},
+      )
 
       expect(calls).toEqual(["responses:grok-4"])
       expect(result.language).toBeDefined()
@@ -94,11 +98,15 @@ describe("XAIPlugin", () => {
       const calls: string[] = []
 
       yield* plugin.add(XAIPlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: new ModelV2.Info({ ...model, providerID: ProviderV2.ID.openai }),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        {
+          model: new ModelV2.Info({ ...model, providerID: ProviderV2.ID.openai }),
+          sdk: fakeSelectorSdk(calls),
+          options: {},
+        },
+        {},
+      )
 
       expect(calls).toEqual([])
       expect(result.language).toBeUndefined()

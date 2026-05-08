@@ -9,11 +9,11 @@ describe("VenicePlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(VenicePlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("venice", "model"),
-        package: "venice-ai-sdk-provider",
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("venice", "model"), package: "venice-ai-sdk-provider", options: { name: "venice" } },
+        {},
+      )
       expect(result.sdk).toBeDefined()
     }),
   )
@@ -32,11 +32,15 @@ describe("VenicePlugin", () => {
             }),
         }),
       })
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-venice", "model"),
-        package: "venice-ai-sdk-provider",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-venice", "model"),
+          package: "venice-ai-sdk-provider",
+          options: { name: "custom-venice", apiKey: "test" },
+        },
+        {},
+      )
       expect(result.sdk).toBeDefined()
       expect(observed).toEqual(["custom-venice.chat"])
     }),
@@ -46,16 +50,20 @@ describe("VenicePlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(VenicePlugin)
-      const similar = yield* plugin.trigger("aisdk.sdk", {
-        model: model("venice", "model"),
-        package: "file:///tmp/venice-ai-sdk-provider.js",
-        options: {},
-      })
-      const other = yield* plugin.trigger("aisdk.sdk", {
-        model: model("venice", "model"),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
+      const similar = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("venice", "model"),
+          package: "file:///tmp/venice-ai-sdk-provider.js",
+          options: { name: "venice" },
+        },
+        {},
+      )
+      const other = yield* plugin.trigger(
+        "aisdk.sdk",
+        { model: model("venice", "model"), package: "@ai-sdk/openai-compatible", options: { name: "venice" } },
+        {},
+      )
       expect(similar.sdk).toBeUndefined()
       expect(other.sdk).toBeUndefined()
     }),
@@ -66,11 +74,11 @@ describe("VenicePlugin", () => {
       const plugin = yield* PluginV2.Service
       const calls: string[] = []
       yield* plugin.add(VenicePlugin)
-      const result = yield* plugin.trigger("aisdk.language", {
-        model: model("venice", "alias"),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.language",
+        { model: model("venice", "alias"), sdk: fakeSelectorSdk(calls), options: {} },
+        {},
+      )
       expect(calls).toEqual([])
       expect(result.language).toBeUndefined()
     }),

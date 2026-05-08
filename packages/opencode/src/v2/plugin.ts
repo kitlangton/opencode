@@ -2,9 +2,9 @@ export * as PluginV2 from "./plugin"
 
 import { createDraft, finishDraft, type Draft } from "immer"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
-import { type ModelV2 } from "./model"
 import { type ProviderV2 } from "./provider"
 import { Context, Effect, Layer, Schema } from "effect"
+import type { ModelV2 } from "./model"
 
 export const ID = Schema.String.pipe(Schema.brand("Plugin.ID"))
 export type ID = typeof ID.Type
@@ -58,45 +58,10 @@ export type HookFunctions = {
   [key in keyof Hooks]?: (input: Hooks[key]) => Effect.Effect<void>
 }
 
-export type HookInput<Name extends keyof Hooks> = {
-  [Field in keyof (HookSpec[Name]["input"] & HookSpec[Name]["output"])]:(HookSpec[Name]["input"] &
-    HookSpec[Name]["output"])[Field]
-}
+export type HookInput<Name extends keyof Hooks> = HookSpec[Name]["input"]
+export type HookOutput<Name extends keyof Hooks> = HookSpec[Name]["output"]
 
 export type Effect = Effect.Effect<HookFunctions | void, never, never>
-
-const HookOutputFields = {
-  "provider.update": ["provider", "cancel"],
-  "model.update": ["model", "cancel"],
-  "aisdk.language": ["language"],
-  "aisdk.sdk": ["sdk"],
-} as const satisfies { [Name in keyof HookSpec]: readonly (keyof HookSpec[Name]["output"])[] }
-
-function cloneValue(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(cloneValue)
-  if (!value || typeof value !== "object") return value
-  if (value instanceof Headers) return new Headers(value)
-  if (value instanceof URL) return new URL(value)
-  if (value instanceof Request) return value.clone()
-  if (value instanceof Response) return value.clone()
-  if (Object.getPrototypeOf(value) !== Object.prototype) return value
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneValue(item)]))
-}
-
-function cloneInput<Name extends keyof Hooks>(input: HookInput<Name>) {
-  return Object.fromEntries(Object.entries(input).map(([key, value]) => [key, cloneValue(value)])) as HookInput<Name>
-}
-
-function normalize<Name extends keyof Hooks>(name: Name, event: Record<string, unknown>) {
-  if (name !== "aisdk.sdk") return event
-  const model = event.model as ModelV2.Info
-  const options = event.options && typeof event.options === "object" ? (event.options as Record<string, unknown>) : {}
-  event.options = {
-    name: model.providerID,
-    ...options,
-  }
-  return event
-}
 
 export function define<R>(input: { id: ID; effect: Effect.Effect<HookFunctions | void, never, R> }) {
   return input
@@ -105,7 +70,11 @@ export function define<R>(input: { id: ID; effect: Effect.Effect<HookFunctions |
 export interface Interface {
   readonly add: (input: { id: ID; effect: Effect }) => Effect.Effect<void>
   readonly remove: (id: ID) => Effect.Effect<void>
-  readonly trigger: <Name extends keyof Hooks>(name: Name, input: HookInput<Name>) => Effect.Effect<HookInput<Name>>
+  readonly trigger: <Name extends keyof Hooks>(
+    name: Name,
+    input: HookInput<Name>,
+    output: HookOutput<Name>,
+  ) => Effect.Effect<HookInput<Name> & HookOutput<Name>>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/v2/Plugin") {}
@@ -130,17 +99,17 @@ export const layer = Layer.effect(
           },
         ]
       }),
-      trigger: Effect.fn("Plugin.trigger")(function* (name, input) {
-        const outputFields = HookOutputFields[name]
+      trigger: Effect.fn("Plugin.trigger")(function* (name, input, output) {
         const draftEntries = new Map<string, ReturnType<typeof createDraft>>()
-        const event = normalize(name, cloneInput(input) as Record<string, unknown>)
+        const event = {
+          ...input,
+          ...output,
+        } as Record<string, unknown>
 
-        for (const field of outputFields) {
-          if (!(field in input)) continue
-          const value = (input as Record<string, unknown>)[String(field)]
+        for (const [field, value] of Object.entries(output)) {
           if (value && typeof value === "object") {
-            draftEntries.set(String(field), createDraft(value))
-            event[String(field)] = draftEntries.get(String(field))
+            draftEntries.set(field, createDraft(value))
+            event[field] = draftEntries.get(field)
           }
         }
 

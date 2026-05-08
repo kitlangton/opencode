@@ -7,26 +7,39 @@ import { expectPluginRegistered, it, provider } from "./provider-helper"
 
 describe("LLMGatewayPlugin", () => {
   it.effect("is registered so legacy referer headers can be applied", () =>
-    Effect.sync(() => expectPluginRegistered(ProviderPlugins.map((item) => item.id), "llmgateway")),
+    Effect.sync(() =>
+      expectPluginRegistered(
+        ProviderPlugins.map((item) => item.id),
+        "llmgateway",
+      ),
+    ),
   )
 
   it.effect("applies legacy referer headers only to enabled llmgateway", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(LLMGatewayPlugin)
-      const result = yield* plugin.trigger("provider.update", {
-        provider: provider("llmgateway", {
-          enabled: { via: "env", name: "LLMGATEWAY_API_KEY" },
-          options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
-        }),
-        cancel: false,
-      })
-      const ignored = yield* plugin.trigger("provider.update", {
-        provider: provider("openrouter", {
-          enabled: { via: "env", name: "OPENROUTER_API_KEY" },
-        }),
-        cancel: false,
-      })
+      const result = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("llmgateway", {
+            enabled: { via: "env", name: "LLMGATEWAY_API_KEY" },
+            options: { headers: { Existing: "value" }, body: {}, aisdk: { provider: {}, request: {} } },
+          }),
+          cancel: false,
+        },
+      )
+      const ignored = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("openrouter", {
+            enabled: { via: "env", name: "OPENROUTER_API_KEY" },
+          }),
+          cancel: false,
+        },
+      )
       expect(result.provider.options.headers).toEqual({
         Existing: "value",
         "HTTP-Referer": "https://opencode.ai/",
@@ -41,7 +54,7 @@ describe("LLMGatewayPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(LLMGatewayPlugin)
-      const result = yield* plugin.trigger("provider.update", { provider: provider("llmgateway"), cancel: false })
+      const result = yield* plugin.trigger("provider.update", {}, { provider: provider("llmgateway"), cancel: false })
 
       expect(result.provider.enabled).toBe(false)
       expect(result.provider.options.headers).toEqual({})

@@ -21,12 +21,16 @@ describe("CerebrasPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(CerebrasPlugin)
-      const result = yield* plugin.trigger("provider.update", {
-        provider: provider("cerebras", {
-          options: { headers: { Existing: "1" }, body: {}, aisdk: { provider: {}, request: {} } },
-        }),
-        cancel: false,
-      })
+      const result = yield* plugin.trigger(
+        "provider.update",
+        {},
+        {
+          provider: provider("cerebras", {
+            options: { headers: { Existing: "1" }, body: {}, aisdk: { provider: {}, request: {} } },
+          }),
+          cancel: false,
+        },
+      )
       expect(result.provider.options.headers).toEqual({ Existing: "1", "X-Cerebras-3rd-Party-Integration": "opencode" })
     }),
   )
@@ -35,7 +39,7 @@ describe("CerebrasPlugin", () => {
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service
       yield* plugin.add(CerebrasPlugin)
-      const result = yield* plugin.trigger("provider.update", { provider: provider("groq"), cancel: false })
+      const result = yield* plugin.trigger("provider.update", {}, { provider: provider("groq"), cancel: false })
       expect(result.provider.options.headers).toEqual({})
     }),
   )
@@ -45,11 +49,15 @@ describe("CerebrasPlugin", () => {
       cerebrasOptions.length = 0
       const plugin = yield* PluginV2.Service
       yield* plugin.add(CerebrasPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-cerebras", "llama-4-scout-17b-16e-instruct"),
-        package: "@ai-sdk/cerebras",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-cerebras", "llama-4-scout-17b-16e-instruct"),
+          package: "@ai-sdk/cerebras",
+          options: { name: "custom-cerebras", apiKey: "test" },
+        },
+        {},
+      )
       expect(cerebrasOptions).toEqual([{ name: "custom-cerebras", apiKey: "test" }])
       expect(result.sdk.languageModel("llama-4-scout-17b-16e-instruct").provider).toBe("custom-cerebras")
     }),
@@ -60,11 +68,15 @@ describe("CerebrasPlugin", () => {
       cerebrasOptions.length = 0
       const plugin = yield* PluginV2.Service
       yield* plugin.add(CerebrasPlugin)
-      yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-cerebras", "llama-4-scout-17b-16e-instruct"),
-        package: "@ai-sdk/cerebras",
-        options: { name: "configured-cerebras", apiKey: "test" },
-      })
+      yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-cerebras", "llama-4-scout-17b-16e-instruct"),
+          package: "@ai-sdk/cerebras",
+          options: { name: "configured-cerebras", apiKey: "test" },
+        },
+        {},
+      )
       expect(cerebrasOptions).toEqual([{ name: "configured-cerebras", apiKey: "test" }])
     }),
   )
@@ -74,11 +86,15 @@ describe("CerebrasPlugin", () => {
       cerebrasOptions.length = 0
       const plugin = yield* PluginV2.Service
       yield* plugin.add(CerebrasPlugin)
-      const result = yield* plugin.trigger("aisdk.sdk", {
-        model: model("custom-cerebras", "llama-4-scout-17b-16e-instruct"),
-        package: "@ai-sdk/groq",
-        options: { apiKey: "test" },
-      })
+      const result = yield* plugin.trigger(
+        "aisdk.sdk",
+        {
+          model: model("custom-cerebras", "llama-4-scout-17b-16e-instruct"),
+          package: "@ai-sdk/groq",
+          options: { name: "custom-cerebras", apiKey: "test" },
+        },
+        {},
+      )
       expect(cerebrasOptions).toEqual([])
       expect(result.sdk).toBeUndefined()
     }),
