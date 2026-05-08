@@ -66,7 +66,7 @@ describe("AmazonBedrockPlugin", () => {
     ),
   )
 
-  it.effect("does not create SDK without an old Bedrock credential source", () =>
+  it.effect("creates SDK without explicit credential env so the default AWS chain can resolve credentials", () =>
     withEnv(
       {
         AWS_ACCESS_KEY_ID: undefined,
@@ -86,7 +86,8 @@ describe("AmazonBedrockPlugin", () => {
             package: "@ai-sdk/amazon-bedrock",
             options: {},
           })
-          expect(result.sdk).toBeUndefined()
+          expect(result.sdk).toBeDefined()
+          expect(bedrockBaseURL(result.sdk)).toBe("https://bedrock-runtime.us-east-1.amazonaws.com")
         }),
     ),
   )

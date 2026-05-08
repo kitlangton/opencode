@@ -17,6 +17,9 @@ export const OpenAIPlugin = PluginV2.define({
         evt.language = evt.sdk.responses(evt.model.apiID)
       }),
       "model.update": Effect.fn(function* (evt) {
+        if (evt.model.providerID !== ProviderV2.ID.openai) return
+        // OpenAIPlugin sends OpenAI models through Responses; this alias is a
+        // chat-completions-only model, so remove it only from OpenAI's catalog.
         if (evt.model.id === ModelV2.ID.make("gpt-5-chat-latest")) evt.cancel = true
       }),
     }

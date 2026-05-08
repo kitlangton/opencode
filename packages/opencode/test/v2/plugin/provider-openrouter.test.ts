@@ -73,4 +73,16 @@ describe("OpenRouterPlugin", () => {
       expect(ignored.cancel).toBe(false)
     }),
   )
+
+  it.effect("does not filter gpt-5-chat-latest for non-OpenRouter providers", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      yield* plugin.add(OpenRouterPlugin)
+      const result = yield* plugin.trigger("model.update", {
+        model: model("custom-openrouter", "gpt-5-chat-latest"),
+        cancel: false,
+      })
+      expect(result.cancel).toBe(false)
+    }),
+  )
 })

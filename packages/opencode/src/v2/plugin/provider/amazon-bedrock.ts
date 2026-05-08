@@ -2,6 +2,9 @@ import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
+// Bedrock cross-region inference profiles require regional prefixes only for
+// specific model/region combinations. Keep the mapping narrow and avoid
+// double-prefixing model IDs that models.dev already marks as global/us/eu/etc.
 function resolveModelID(modelID: string, region: string | undefined) {
   const crossRegionPrefixes = ["global.", "us.", "eu.", "jp.", "apac.", "au."]
   if (crossRegionPrefixes.some((prefix) => modelID.startsWith(prefix))) return modelID
@@ -51,6 +54,8 @@ export const AmazonBedrockPlugin = PluginV2.define({
         if (evt.provider.id !== ProviderV2.ID.amazonBedrock) return
         if (evt.provider.endpoint.type !== "aisdk") return
         if (typeof evt.provider.options.aisdk.provider.endpoint !== "string") return
+        // The AI SDK expects a base URL, but users configure Bedrock private/VPC
+        // endpoints as `endpoint`; move it into the catalog endpoint URL once.
         evt.provider.endpoint.url = evt.provider.options.aisdk.provider.endpoint
         delete evt.provider.options.aisdk.provider.endpoint
       }),
@@ -66,15 +71,12 @@ export const AmazonBedrockPlugin = PluginV2.define({
         const containerCreds = Boolean(
           process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI || process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI,
         )
-        if (!profile && !process.env.AWS_ACCESS_KEY_ID && !bearerToken && !process.env.AWS_WEB_IDENTITY_TOKEN_FILE && !containerCreds)
-          return
 
         options.region = region
         if (typeof options.endpoint === "string") options.baseURL = options.endpoint
-        if (
-          !bearerToken &&
-          (profile || process.env.AWS_ACCESS_KEY_ID || process.env.AWS_WEB_IDENTITY_TOKEN_FILE || containerCreds)
-        ) {
+        if (!bearerToken && options.credentialProvider === undefined) {
+          // Do not gate SDK creation on explicit AWS env vars. The default chain
+          // also handles ~/.aws/credentials, SSO, process creds, and instance roles.
           const { fromNodeProviderChain } = yield* Effect.promise(() => import("@aws-sdk/credential-providers"))
           options.credentialProvider = fromNodeProviderChain(profile ? { profile } : {})
         }

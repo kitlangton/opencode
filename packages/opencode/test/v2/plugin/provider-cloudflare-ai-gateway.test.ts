@@ -169,6 +169,34 @@ describe("CloudflareAIGatewayPlugin", () => {
     ),
   )
 
+  it.effect("accepts gatewayId metadata copied from auth into provider options", () =>
+    withEnv(
+      cloudflareEnv({ CLOUDFLARE_ACCOUNT_ID: undefined, CLOUDFLARE_GATEWAY_ID: undefined, CLOUDFLARE_API_TOKEN: undefined }),
+      () =>
+        Effect.gen(function* () {
+          resetCalls()
+          const plugin = yield* PluginV2.Service
+          yield* plugin.add(CloudflareAIGatewayPlugin)
+
+          yield* plugin.trigger("aisdk.sdk", {
+            model: model("cloudflare-ai-gateway", "openai/gpt-5"),
+            package: "ai-gateway-provider",
+            options: {
+              accountId: "auth-account",
+              gatewayId: "auth-gateway",
+              apiKey: "auth-token",
+            },
+          })
+
+          expect(aiGatewayCalls[0]).toMatchObject({
+            accountId: "auth-account",
+            gateway: "auth-gateway",
+            apiKey: "auth-token",
+          })
+        }),
+    ),
+  )
+
   it.effect("falls back to CF_AIG_TOKEN when CLOUDFLARE_API_TOKEN is unset", () =>
     withEnv(cloudflareEnv({ CLOUDFLARE_API_TOKEN: undefined, CF_AIG_TOKEN: "cf-aig-token" }), () =>
       Effect.gen(function* () {

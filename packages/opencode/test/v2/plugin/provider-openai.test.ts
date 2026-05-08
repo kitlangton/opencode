@@ -78,4 +78,16 @@ describe("OpenAIPlugin", () => {
       expect(filtered.cancel).toBe(true)
     }),
   )
+
+  it.effect("does not cancel gpt-5-chat-latest for non-OpenAI providers", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      yield* plugin.add(OpenAIPlugin)
+      const result = yield* plugin.trigger("model.update", {
+        model: model("custom-openai", "gpt-5-chat-latest"),
+        cancel: false,
+      })
+      expect(result.cancel).toBe(false)
+    }),
+  )
 })

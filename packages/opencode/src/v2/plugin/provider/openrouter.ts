@@ -18,9 +18,11 @@ export const OpenRouterPlugin = PluginV2.define({
         evt.sdk = mod.createOpenRouter(evt.options)
       }),
       "model.update": Effect.fn(function* (evt) {
+        if (evt.model.providerID !== ProviderV2.ID.openrouter) return
+        // These are OpenRouter-specific OpenAI chat aliases that do not work on
+        // the generic path. Keep custom providers with matching IDs untouched.
         if (evt.model.id === ModelV2.ID.make("gpt-5-chat-latest")) evt.cancel = true
-        if (evt.model.providerID === ProviderV2.ID.openrouter && evt.model.id === ModelV2.ID.make("openai/gpt-5-chat"))
-          evt.cancel = true
+        if (evt.model.id === ModelV2.ID.make("openai/gpt-5-chat")) evt.cancel = true
       }),
     }
   }),

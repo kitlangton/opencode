@@ -109,6 +109,18 @@ describe("GithubCopilotPlugin", () => {
     }),
   )
 
+  it.effect("does not filter gpt-5-chat-latest for non-Copilot providers", () =>
+    Effect.gen(function* () {
+      const plugin = yield* PluginV2.Service
+      yield* plugin.add(GithubCopilotPlugin)
+      const result = yield* plugin.trigger("model.update", {
+        model: model("custom-copilot", "gpt-5-chat-latest"),
+        cancel: false,
+      })
+      expect(result.cancel).toBe(false)
+    }),
+  )
+
   it.effect("ignores non-Copilot providers", () =>
     Effect.gen(function* () {
       const plugin = yield* PluginV2.Service

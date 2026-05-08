@@ -4,47 +4,67 @@ import { Effect } from "effect"
 import { PluginV2 } from "../../plugin"
 import { ProviderV2 } from "../../provider"
 
+const providerID = ProviderV2.ID.make("cloudflare-workers-ai")
+
 export const CloudflareWorkersAIPlugin = PluginV2.define({
   id: PluginV2.ID.make("cloudflare-workers-ai"),
   effect: Effect.gen(function* () {
     return {
       "provider.update": Effect.fn(function* (evt) {
-        if (evt.provider.id !== ProviderV2.ID.make("cloudflare-workers-ai")) return
+        if (evt.provider.id !== providerID) return
         if (evt.provider.endpoint.type !== "aisdk") return
         if (evt.provider.endpoint.url) return
-        const accountId = process.env.CLOUDFLARE_ACCOUNT_ID ??
-          (typeof evt.provider.options.aisdk.provider.accountId === "string"
-            ? evt.provider.options.aisdk.provider.accountId
-            : undefined)
-        if (accountId) evt.provider.endpoint.url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1`
+
+        const accountId = resolveAccountId(evt.provider.options.aisdk.provider)
+        if (accountId) evt.provider.endpoint.url = workersEndpoint(accountId)
       }),
       "aisdk.sdk": Effect.fn(function* (evt) {
-        if (evt.model.providerID !== ProviderV2.ID.make("cloudflare-workers-ai")) return
+        if (evt.model.providerID !== providerID) return
         if (evt.package !== "@ai-sdk/openai-compatible") return
-        if (evt.model.endpoint.type !== "aisdk" || !evt.model.endpoint.url) {
-          throw new Error(
-            "CLOUDFLARE_ACCOUNT_ID is missing. Set it with: export CLOUDFLARE_ACCOUNT_ID=<your-account-id>",
-          )
-        }
+
+        requireWorkersEndpoint(evt.model.endpoint)
         const mod = yield* Effect.promise(() => import("@ai-sdk/openai-compatible"))
-        const baseURL = typeof evt.options.baseURL === "string"
-          ? evt.options.baseURL.replaceAll("${CLOUDFLARE_ACCOUNT_ID}", process.env.CLOUDFLARE_ACCOUNT_ID ?? "${CLOUDFLARE_ACCOUNT_ID}")
-          : evt.options.baseURL
-        evt.sdk = mod.createOpenAICompatible({
-          ...evt.options,
-          baseURL,
-          apiKey: process.env.CLOUDFLARE_API_KEY ?? evt.options.apiKey,
-          headers: {
-            "User-Agent": `opencode/${InstallationVersion} cloudflare-workers-ai (${os.platform()} ${os.release()}; ${os.arch()})`,
-            ...evt.options.headers,
-          },
-          name: "cloudflare-workers-ai",
-        } as any)
+        evt.sdk = mod.createOpenAICompatible(sdkOptions(evt.options) as any)
       }),
       "aisdk.language": Effect.fn(function* (evt) {
-        if (evt.model.providerID !== ProviderV2.ID.make("cloudflare-workers-ai")) return
+        if (evt.model.providerID !== providerID) return
         evt.language = evt.sdk.languageModel(evt.model.apiID)
       }),
     }
   }),
 })
+
+function resolveAccountId(options: Record<string, unknown>) {
+  return process.env.CLOUDFLARE_ACCOUNT_ID ?? stringOption(options, "accountId")
+}
+
+function workersEndpoint(accountId: string) {
+  return `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1`
+}
+
+function requireWorkersEndpoint(endpoint: ProviderV2.Endpoint) {
+  if (endpoint.type === "aisdk" && endpoint.url) return
+  throw new Error("CLOUDFLARE_ACCOUNT_ID is missing. Set it with: export CLOUDFLARE_ACCOUNT_ID=<your-account-id>")
+}
+
+function sdkOptions(options: Record<string, any>) {
+  return {
+    ...options,
+    baseURL: expandAccountId(options.baseURL),
+    apiKey: process.env.CLOUDFLARE_API_KEY ?? options.apiKey,
+    headers: {
+      "User-Agent": `opencode/${InstallationVersion} cloudflare-workers-ai (${os.platform()} ${os.release()}; ${os.arch()})`,
+      ...options.headers,
+    },
+    name: providerID,
+  }
+}
+
+function expandAccountId(baseURL: unknown) {
+  if (typeof baseURL !== "string") return baseURL
+  return baseURL.replaceAll("${CLOUDFLARE_ACCOUNT_ID}", process.env.CLOUDFLARE_ACCOUNT_ID ?? "${CLOUDFLARE_ACCOUNT_ID}")
+}
+
+function stringOption(options: Record<string, unknown>, key: string) {
+  return typeof options[key] === "string" ? options[key] : undefined
+}

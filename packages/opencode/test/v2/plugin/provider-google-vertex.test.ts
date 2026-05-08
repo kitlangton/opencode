@@ -65,6 +65,50 @@ describe("GoogleVertexPlugin", () => {
     ),
   )
 
+  it.effect("resolves the advertised GOOGLE_VERTEX_PROJECT env for provider updates and SDKs", () =>
+    withEnv(
+      {
+        GOOGLE_VERTEX_PROJECT: "vertex-project",
+        GOOGLE_CLOUD_PROJECT: undefined,
+        GCP_PROJECT: undefined,
+        GCLOUD_PROJECT: undefined,
+        GOOGLE_VERTEX_LOCATION: "europe-west4",
+        GOOGLE_CLOUD_LOCATION: undefined,
+        VERTEX_LOCATION: undefined,
+      },
+      () =>
+        Effect.gen(function* () {
+          vertexOptions.length = 0
+          const plugin = yield* PluginV2.Service
+          yield* plugin.add(GoogleVertexPlugin)
+          const updated = yield* plugin.trigger("provider.update", {
+            provider: provider("google-vertex", {
+              endpoint: {
+                type: "aisdk",
+                package: "@ai-sdk/openai-compatible",
+                url: "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}",
+              },
+            }),
+            cancel: false,
+          })
+          yield* plugin.trigger("aisdk.sdk", {
+            model: model("google-vertex", "gemini", { endpoint: { type: "aisdk", package: "@ai-sdk/google-vertex" } }),
+            package: "@ai-sdk/google-vertex",
+            options: {},
+          })
+
+          expect(updated.provider.options.aisdk.provider.project).toBe("vertex-project")
+          expect(updated.provider.endpoint).toEqual({
+            type: "aisdk",
+            package: "@ai-sdk/openai-compatible",
+            url: "https://europe-west4-aiplatform.googleapis.com/v1/projects/vertex-project/locations/europe-west4",
+          })
+          expect(vertexOptions[0].project).toBe("vertex-project")
+          expect(vertexOptions[0].location).toBe("europe-west4")
+        }),
+    ),
+  )
+
   it.effect("keeps configured project and location over env and uses global endpoint", () =>
     withEnv(
       {
