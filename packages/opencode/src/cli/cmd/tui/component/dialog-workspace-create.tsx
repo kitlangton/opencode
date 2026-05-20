@@ -5,6 +5,7 @@ import { useSync } from "@tui/context/sync"
 import { useProject } from "@tui/context/project"
 import { useRoute } from "@tui/context/route"
 import { createMemo, createSignal, onMount } from "solid-js"
+import { NamedError } from "@opencode-ai/core/util/error"
 import { errorMessage } from "@/util/error"
 import { useSDK } from "../context/sdk"
 import { useToast } from "../ui/toast"
@@ -108,7 +109,7 @@ export async function warpWorkspaceSession(input: {
     })
     .catch(() => undefined)
   if (!result?.data) {
-    if (result?.error?.name === "VcsApplyError") {
+    if (NamedError.hasName(result?.error, "VcsApplyError")) {
       await DialogAlert.show(
         input.dialog,
         "Unable to Warp Session",
