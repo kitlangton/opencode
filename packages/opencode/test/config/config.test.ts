@@ -561,6 +561,7 @@ test("resolves env templates in account config with account token", async () => 
         Effect.gen(function* () {
           const config = yield* svc.get()
           expect(config.provider?.["opencode"]?.options?.apiKey).toBe("st_test_token")
+          expect(process.env["OPENCODE_CONSOLE_TOKEN"]).toBe(originalControlToken)
         }),
       ),
     ).pipe(Effect.scoped, Effect.provide(layer), Effect.runPromise)
