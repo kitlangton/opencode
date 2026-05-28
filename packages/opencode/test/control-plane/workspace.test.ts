@@ -1327,6 +1327,60 @@ describe("workspace sync state", () => {
     }),
   )
 
+  it.live("malformed initial remote history sets error rather than reporting a connection", () => {
+    let sessionID: SessionID | undefined
+    return Effect.gen(function* () {
+      yield* HttpServer.serveEffect()(
+        Effect.gen(function* () {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const url = new URL(req.url, "http://localhost")
+          if (url.pathname === "/history-malformed/global/event") {
+            return HttpServerResponse.fromWeb(eventStreamResponse([], false))
+          }
+          if (url.pathname === "/history-malformed/sync/history") {
+            return yield* HttpServerResponse.json([
+              {
+                id: `evt_${unique("history-malformed")}`,
+                aggregate_id: sessionID!,
+                seq: 1,
+                type: "session.next.agent.switched.1",
+                data: { sessionID: sessionID!, timestamp: "not-a-timestamp", agent: "build" },
+              },
+            ])
+          }
+          return HttpServerResponse.text("unexpected", { status: 500 })
+        }),
+      )
+      const url = yield* serverUrl()
+      yield* provideTmpdirInstance(
+        () =>
+          Effect.gen(function* () {
+            const workspace = yield* Workspace.Service
+            const sessionSvc = yield* SessionNs.Service
+            const instance = yield* requireInstance
+            const type = unique("remote-history-malformed")
+            const info = workspaceInfo(instance.project.id, type)
+            insertWorkspace(info)
+            registerAdapter(instance.project.id, type, remoteAdapter(`${url}/history-malformed`).adapter)
+            yield* Effect.addFinalizer(() => workspace.remove(info.id).pipe(Effect.ignore))
+            const session = yield* sessionSvc.create({})
+            attachSessionToWorkspace(session.id, info.id)
+            sessionID = session.id
+
+            yield* workspace.startWorkspaceSyncing(instance.project.id)
+
+            yield* eventuallyEffect(
+              Effect.gen(function* () {
+                expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBe("error")
+              }),
+            )
+            expect(yield* workspace.isSyncing(info.id)).toBe(false)
+          }),
+        { git: true },
+      )
+    })
+  })
+
   it.live("sync history sends the local sequence fence and replays returned events in workspace context", () => {
     const historyBodies: unknown[] = []
     let historySessionID: SessionID | undefined
@@ -1734,6 +1788,70 @@ describe("workspace sync state", () => {
             } finally {
               captured.dispose()
             }
+          }),
+        { git: true },
+      )
+    })
+  })
+
+  it.live("malformed live sync events stop reporting the remote workspace as connected", () => {
+    let sessionID: SessionID | undefined
+    let nextSeq = 0
+    return Effect.gen(function* () {
+      yield* HttpServer.serveEffect()(
+        Effect.gen(function* () {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const url = new URL(req.url, "http://localhost")
+          if (url.pathname === "/sse-malformed/global/event") {
+            return HttpServerResponse.fromWeb(
+              eventStreamResponse(
+                [
+                  {
+                    payload: {
+                      type: "sync",
+                      syncEvent: {
+                        id: `evt_${unique("sse-malformed")}`,
+                        aggregateID: sessionID!,
+                        seq: nextSeq,
+                        type: "session.next.agent.switched.1",
+                        data: { sessionID: sessionID!, timestamp: "not-a-timestamp", agent: "build" },
+                      },
+                    },
+                  },
+                ],
+                false,
+              ),
+            )
+          }
+          if (url.pathname === "/sse-malformed/sync/history") return yield* HttpServerResponse.json([])
+          return HttpServerResponse.text("unexpected", { status: 500 })
+        }),
+      )
+      const url = yield* serverUrl()
+      yield* provideTmpdirInstance(
+        () =>
+          Effect.gen(function* () {
+            const workspace = yield* Workspace.Service
+            const sessionSvc = yield* SessionNs.Service
+            const instance = yield* requireInstance
+            const type = unique("remote-sse-malformed")
+            const info = workspaceInfo(instance.project.id, type)
+            insertWorkspace(info)
+            registerAdapter(instance.project.id, type, remoteAdapter(`${url}/sse-malformed`).adapter)
+            yield* Effect.addFinalizer(() => workspace.remove(info.id).pipe(Effect.ignore))
+            const session = yield* sessionSvc.create({})
+            attachSessionToWorkspace(session.id, info.id)
+            sessionID = session.id
+            nextSeq = (sessionSequence(session.id) ?? -1) + 1
+
+            yield* workspace.startWorkspaceSyncing(instance.project.id)
+
+            yield* eventuallyEffect(
+              Effect.gen(function* () {
+                expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBe("error")
+              }),
+            )
+            expect(sessionSequence(session.id)).toBe(nextSeq - 1)
           }),
         { git: true },
       )
