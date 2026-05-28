@@ -4,7 +4,7 @@ import { NodeHttpServer } from "@effect/platform-node"
 import { AppFileSystem } from "@opencode-ai/core/filesystem"
 import { Deferred, Duration, Effect, Layer, Schema, Stream } from "effect"
 import { FetchHttpClient, HttpServer, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { Auth } from "@/auth"
 import { InstanceBootstrap } from "@/project/bootstrap"
 import { InstanceStore } from "@/project/instance-store"
@@ -14,7 +14,7 @@ import { SessionPrompt } from "@/session/prompt"
 import { Project } from "@/project/project"
 import { Vcs } from "@/project/vcs"
 import { Database } from "@/storage/db"
-import { EventSequenceTable } from "@/sync/event.sql"
+import { EventSequenceTable, EventTable } from "@/sync/event.sql"
 import { SyncEvent } from "@/sync"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { SessionPaths } from "@/server/routes/instance/httpapi/groups/session"
@@ -45,12 +45,6 @@ export const layer = Layer.mergeAll(
   SessionNs.defaultLayer,
 )
 
-type Action = "history" | "import" | "commit"
-type Fault =
-  | { tag: "reject"; status: number; body: string }
-  | { tag: "lose-ack"; status: number; body: string }
-  | { tag: "pause"; started: Deferred.Deferred<void>; resume: Deferred.Deferred<void> }
-
 export type HistoryEvent = {
   id: string
   aggregate_id: string
@@ -59,27 +53,17 @@ export type HistoryEvent = {
   data: Record<string, unknown>
 }
 
-export type Pause = {
-  started: Effect.Effect<void>
-  resume: Effect.Effect<boolean>
-}
-
 export type Remote = {
   readonly id: WorkspaceID
   readonly name: string
   readonly directory: string
   readonly url: string
-  failNextHistoryRead: (status?: number) => void
-  rejectNextImport: (status?: number) => void
-  rejectNextCommit: (status?: number) => void
-  loseNextCommitAcknowledgement: (status?: number) => void
-  pauseNextImport: () => Effect.Effect<Pause>
 }
 
-type Node = Remote & { faults: Partial<Record<Action, Fault>>; prefix: string }
+type Node = Remote & { prefix: string }
 const cliEntry = path.resolve(import.meta.dir, "../../src/index.ts")
 
-export const make = Effect.fn("TransferLab.make")(function* () {
+export const make = Effect.fn("AssignmentLab.make")(function* () {
   const workspace = yield* Workspace.Service
   const sessionSvc = yield* SessionNs.Service
   const instance = yield* requireInstance
@@ -91,42 +75,22 @@ export const make = Effect.fn("TransferLab.make")(function* () {
       const req = yield* HttpServerRequest.HttpServerRequest
       const requestURL = new URL(req.url, "http://localhost")
       const node = [...nodes.values()].find((item) => requestURL.pathname.startsWith(item.prefix))
-      if (!node) return HttpServerResponse.text("unknown transfer lab remote", { status: 500 })
-      const path = requestURL.pathname.slice(node.prefix.length)
-      const action =
-        path === SyncPaths.history
-          ? "history"
-          : path === SyncPaths.replay
-            ? "import"
-            : path === SyncPaths.steal
-              ? "commit"
-              : undefined
-      const fault = action ? node.faults[action] : undefined
-      if (action) delete node.faults[action]
-      if (fault?.tag === "reject") return HttpServerResponse.text(fault.body, { status: fault.status })
-      if (fault?.tag === "pause") {
-        yield* Deferred.succeed(fault.started, undefined)
-        yield* Deferred.await(fault.resume)
-      }
-      const response = yield* requestRemote(node, path, req.method, yield* req.text)
-      if (fault?.tag === "lose-ack") {
-        yield* Effect.promise(() => response.text())
-        return HttpServerResponse.text(fault.body, { status: fault.status })
-      }
-      return HttpServerResponse.fromWeb(response)
+      if (!node) return HttpServerResponse.text("unknown assignment lab remote", { status: 500 })
+      const route = requestURL.pathname.slice(node.prefix.length)
+      return HttpServerResponse.fromWeb(yield* requestRemote(node, route, req.method, yield* req.text))
     }),
   )
 
   const remote = (name: string) =>
     Effect.gen(function* () {
       const home = yield* tmpdirScoped()
-      // Remote nodes share the logical project directory but have independent durable databases.
+      // Nodes share one logical project, but each child has an independent durable database.
       const directory = instance.directory
       const id = WorkspaceID.ascending(`wrk_lab_${name}`)
       const process = yield* startRemote(home, id)
       const info: Workspace.Info = {
         id,
-        type: `transfer-lab-${name}`,
+        type: `assignment-lab-${name}`,
         name,
         branch: null,
         directory,
@@ -135,31 +99,11 @@ export const make = Effect.fn("TransferLab.make")(function* () {
         timeUsed: Date.now(),
       }
       const node: Node = {
-        id: info.id,
+        id,
         name,
         directory,
         url: process.url,
-        prefix: `/transfer-lab/${name}`,
-        faults: {},
-        failNextHistoryRead(status = 503) {
-          node.faults.history = { tag: "reject", status, body: "history unavailable" }
-        },
-        rejectNextImport(status = 503) {
-          node.faults.import = { tag: "reject", status, body: "import rejected" }
-        },
-        rejectNextCommit(status = 409) {
-          node.faults.commit = { tag: "reject", status, body: "commit rejected" }
-        },
-        loseNextCommitAcknowledgement(status = 503) {
-          node.faults.commit = { tag: "lose-ack", status, body: "acknowledgement lost" }
-        },
-        pauseNextImport: () =>
-          Effect.gen(function* () {
-            const started = yield* Deferred.make<void>()
-            const resume = yield* Deferred.make<void>()
-            node.faults.import = { tag: "pause", started, resume }
-            return { started: Deferred.await(started), resume: Deferred.succeed(resume, undefined) }
-          }),
+        prefix: `/assignment-lab/${name}`,
       }
       nodes.set(name, node)
       insertWorkspace(info)
@@ -167,8 +111,11 @@ export const make = Effect.fn("TransferLab.make")(function* () {
       return node
     })
 
-  // The lab does not run remote SSE listeners; model the control plane observing a committed remote owner event.
-  const observeOwner = (session: SessionNs.Info, remote: Remote) =>
+  const assign = (session: SessionNs.Info, remote: Remote) =>
+    workspace.sessionWarp({ workspaceID: remote.id, sessionID: session.id })
+
+  // This lab does not run SSE collection. Bridge current remote location observation for a reassignment scenario.
+  const observeAssignment = (session: SessionNs.Info, remote: Remote) =>
     Effect.sync(() => {
       Database.use((db) => {
         db.update(SessionTable).set({ workspace_id: remote.id }).where(eq(SessionTable.id, session.id)).run()
@@ -179,53 +126,53 @@ export const make = Effect.fn("TransferLab.make")(function* () {
       })
     })
 
-  const transfer = (session: SessionNs.Info, remote: Remote) =>
-    workspace.sessionWarp({ workspaceID: remote.id, sessionID: session.id })
-
   const history = (remote: Remote, session: SessionNs.Info) =>
     Effect.gen(function* () {
       const response = yield* requestRemote(remote, SyncPaths.history, "POST", "{}")
-      return Schema.decodeUnknownSync(
-        Schema.Array(
-          Schema.Struct({
-            id: Schema.String,
-            aggregate_id: Schema.String,
-            seq: Schema.Number,
-            type: Schema.String,
-            data: Schema.Record(Schema.String, Schema.Unknown),
-          }),
-        ),
-      )(yield* Effect.promise(() => response.json())).filter((event) => event.aggregate_id === session.id)
+      return decodeHistory(yield* Effect.promise(() => response.json())).filter(
+        (event) => event.aggregate_id === session.id,
+      )
     })
 
   return {
     remote,
     session: () => sessionSvc.create({}),
-    sessionOwnedBy: (remote: Remote) =>
+    sessionAssignedTo: (remote: Remote) =>
       Effect.gen(function* () {
         const session = yield* sessionSvc.create({})
-        yield* transfer(session, remote)
-        yield* observeOwner(session, remote)
+        yield* assign(session, remote)
+        yield* observeAssignment(session, remote)
         return session
       }),
-    transfer,
-    observeOwner,
-    owner: (session: SessionNs.Info) => {
-      const owner = Database.use((db) =>
-        db
-          .select({ owner: EventSequenceTable.owner_id })
-          .from(EventSequenceTable)
-          .where(eq(EventSequenceTable.aggregate_id, session.id))
-          .get(),
-      )?.owner
-      return owner === null || owner === undefined ? owner : WorkspaceID.make(owner)
-    },
-    acceptWrite: (session: SessionNs.Info, title: string) => sessionSvc.setTitle({ sessionID: session.id, title }),
+    assign,
+    canonicalHistory: (session: SessionNs.Info) =>
+      Effect.sync(() =>
+        Database.use((db) =>
+          db
+            .select()
+            .from(EventTable)
+            .where(eq(EventTable.aggregate_id, session.id))
+            .orderBy(asc(EventTable.seq))
+            .all(),
+        ),
+      ),
+    history,
     write: (remote: Remote, session: SessionNs.Info, title: string) =>
       requestRemote(remote, SessionPaths.update.replace(":sessionID", session.id), "PATCH", JSON.stringify({ title })),
-    history,
   }
 })
+
+const decodeHistory = Schema.decodeUnknownSync(
+  Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      aggregate_id: Schema.String,
+      seq: Schema.Number,
+      type: Schema.String,
+      data: Schema.Record(Schema.String, Schema.Unknown),
+    }),
+  ),
+)
 
 function insertWorkspace(info: Workspace.Info) {
   Database.use((db) =>
@@ -247,8 +194,8 @@ function insertWorkspace(info: Workspace.Info) {
 
 function remoteAdapter(url: string, directory: string): WorkspaceAdapter {
   return {
-    name: "Transfer Lab Remote",
-    description: "Transfer Lab Remote",
+    name: "Assignment Lab Remote",
+    description: "Assignment Lab Remote",
     configure: (info) => ({ ...info, directory }),
     async create() {},
     async remove() {},
@@ -256,9 +203,9 @@ function remoteAdapter(url: string, directory: string): WorkspaceAdapter {
   }
 }
 
-function requestRemote(remote: Pick<Remote, "url" | "directory">, path: string, method: string, body: string) {
+function requestRemote(remote: Pick<Remote, "url" | "directory">, route: string, method: string, body: string) {
   return Effect.promise(() =>
-    fetch(`${remote.url}${path}`, {
+    fetch(`${remote.url}${route}`, {
       method,
       headers: { "content-type": "application/json", "x-opencode-directory": remote.directory },
       body,
@@ -329,4 +276,4 @@ function startRemote(directory: string, workspaceID: WorkspaceID) {
   })
 }
 
-export * as TransferLab from "./transfer-lab"
+export * as AssignmentLab from "./workspace-assignment-lab"
