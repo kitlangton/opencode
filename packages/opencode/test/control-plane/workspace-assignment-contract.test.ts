@@ -59,6 +59,23 @@ describe("workspace assignment sole-writer contract", () => {
   )
 
   it.live(
+    "assigning a remote workspace does not append the assignment in the remote history",
+    provideTmpdirInstance(
+      () =>
+        Effect.gen(function* () {
+          const lab = yield* AssignmentLab.make()
+          const target = yield* lab.remote("remote-assignment-target")
+          const session = yield* lab.session()
+
+          yield* lab.assign(session, target)
+
+          expect(workspaceAssignments(yield* lab.history(target, session))).not.toContain(target.id)
+        }),
+      { git: true },
+    ),
+  )
+
+  it.live(
     "an assigned remote workspace cannot append authoritative session events locally",
     provideTmpdirInstance(
       () =>
