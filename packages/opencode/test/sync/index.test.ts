@@ -369,6 +369,92 @@ describe("SyncEvent", () => {
     )
 
     it.live(
+      "replayAll rejects a divergent overlapping prefix without appending its suffix",
+      provideTmpdirInstance(() =>
+        Effect.gen(function* () {
+          const { Created } = setup()
+          const id = MessageID.ascending()
+
+          yield* SyncEvent.use.replay({
+            id: "evt_existing",
+            type: SyncEvent.versionedType(Created.type, Created.version),
+            seq: 0,
+            aggregateID: id,
+            data: { id, name: "existing" },
+          })
+
+          const exit = yield* Effect.exit(
+            SyncEvent.use.replayAll([
+              {
+                id: "evt_conflicting",
+                type: SyncEvent.versionedType(Created.type, Created.version),
+                seq: 0,
+                aggregateID: id,
+                data: { id, name: "conflicting" },
+              },
+              {
+                id: "evt_suffix",
+                type: SyncEvent.versionedType(Created.type, Created.version),
+                seq: 1,
+                aggregateID: id,
+                data: { id, name: "suffix" },
+              },
+            ]),
+          )
+
+          expect(exit._tag).toBe("Failure")
+          expect(Database.use((db) => db.select().from(EventTable).all()).map((row) => row.id)).toEqual([
+            "evt_existing",
+          ])
+        }),
+      ),
+    )
+
+    it.live(
+      "replayAll accepts a canonical overlapping prefix when importing a newer suffix",
+      provideTmpdirInstance(() =>
+        Effect.gen(function* () {
+          const { Created } = setup()
+          const id = MessageID.ascending()
+          const prefix = [
+            {
+              id: "evt_prefix_1",
+              type: SyncEvent.versionedType(Created.type, Created.version),
+              seq: 0,
+              aggregateID: id,
+              data: { id, name: "first" },
+            },
+            {
+              id: "evt_prefix_2",
+              type: SyncEvent.versionedType(Created.type, Created.version),
+              seq: 1,
+              aggregateID: id,
+              data: { id, name: "second" },
+            },
+          ]
+
+          yield* SyncEvent.use.replayAll(prefix)
+          yield* SyncEvent.use.replayAll([
+            ...prefix,
+            {
+              id: "evt_return_suffix",
+              type: SyncEvent.versionedType(Created.type, Created.version),
+              seq: 2,
+              aggregateID: id,
+              data: { id, name: "after return" },
+            },
+          ])
+
+          expect(Database.use((db) => db.select().from(EventTable).all()).map((row) => row.id)).toEqual([
+            "evt_prefix_1",
+            "evt_prefix_2",
+            "evt_return_suffix",
+          ])
+        }),
+      ),
+    )
+
+    it.live(
       "claims unowned event sequence on replay with ownerID",
       provideTmpdirInstance(() =>
         Effect.gen(function* () {
@@ -435,6 +521,43 @@ describe("SyncEvent", () => {
           expect(events).toHaveLength(1)
           expect(events[0].id).toBe("evt_1")
           expect(sequence).toEqual({ seq: 0, ownerID: "owner-1" })
+        }),
+      ),
+    )
+
+    it.live(
+      "ignores rejected-owner traffic before examining its event type",
+      provideTmpdirInstance(() =>
+        Effect.gen(function* () {
+          const { Created } = setup()
+          const id = MessageID.ascending()
+
+          yield* SyncEvent.use.replay(
+            {
+              id: "evt_owned",
+              type: SyncEvent.versionedType(Created.type, Created.version),
+              seq: 0,
+              aggregateID: id,
+              data: { id, name: "owned" },
+            },
+            { publish: false, ownerID: "owner-1" },
+          )
+
+          const exit = yield* Effect.exit(
+            SyncEvent.use.replay(
+              {
+                id: "evt_rejected_unknown",
+                type: "future.unknown.99",
+                seq: 1,
+                aggregateID: id,
+                data: {},
+              },
+              { publish: false, ownerID: "owner-2" },
+            ),
+          )
+
+          expect(exit).toMatchObject({ _tag: "Success" })
+          expect(Database.use((db) => db.select().from(EventTable).all()).map((row) => row.id)).toEqual(["evt_owned"])
         }),
       ),
     )
